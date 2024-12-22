@@ -45,7 +45,7 @@ exports.userRegister = async (req, res) => {
   try {
     const password = req.body.password;
 
-    const isMatch = await User.find({ email: req.body.email });
+    const isMatch = await User.findOne({ email: req.body.email });
 
     if (!isMatch) {
       // Hash Format For secure Our password
