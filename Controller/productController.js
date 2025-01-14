@@ -64,6 +64,7 @@ exports.FeatureProduts = async (req, res) => {
 };
 
 exports.findProductType = async (req, res) => {
+  console.log(req.params.type);
   try {
     const findProduct = await Products.find({
       foodType: { $regex: req.params.type, $options: "i" },

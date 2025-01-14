@@ -5,6 +5,7 @@ const bcrypt = require("bcrypt");
 exports.userLogin = async (req, res) => {
   const user = req.body.user;
   const cart = req.body.cart;
+  // console.log(req.body);
   try {
     const findUser = await User.findOne({ email: user.email });
     if (findUser !== null) {
@@ -23,12 +24,13 @@ exports.userLogin = async (req, res) => {
           await findUser.save();
         }
         const { password, ...otherDetails } = findUser._doc;
+        let gentoken = `Lakhdatar ${token}`;
         res
           .cookie("userAuthentication", token, {
             httpOnly: true,
           })
           .status(200)
-          .json({ token: `lakhdatar ${token}` });
+          .json(otherDetails);
       } else {
         res.status(300).json({ message: "Password Not Match " });
       }
