@@ -28,7 +28,7 @@ exports.userLogin = async (req, res) => {
             httpOnly: true,
           })
           .status(200)
-          .json({ ...otherDetails });
+          .json({ token: `lakhdatar ${token}` });
       } else {
         res.status(300).json({ message: "Password Not Match " });
       }

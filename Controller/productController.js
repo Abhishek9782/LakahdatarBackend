@@ -1,10 +1,36 @@
-const { json } = require("express");
 const Products = require("../models/productsSchema");
 
 exports.getAllproducts = async (req, res) => {
+  const { limit, skip } = req.query;
+
+  const Lm = Number.parseInt(limit);
+  const Sk = Number.parseInt(skip);
+  console.log(Sk);
+
   try {
-    const allProducts = await Products.find();
-    res.status(200).json(allProducts);
+    const allProducts = await Products.aggregate([
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          src: 1,
+          price: 1,
+          food: 1,
+          rating: 1,
+        },
+      },
+      { $skip: Sk },
+      { $limit: Lm },
+    ]);
+
+    let hasNextPage;
+    if (allProducts.length > Sk) {
+      hasNextPage = true;
+    } else {
+      hasNextPage = false;
+    }
+    console.log(hasNextPage);
+    res.status(200).json({ allProducts, hasNextPage });
   } catch (error) {
     res.status(500).json(error);
   }
@@ -31,7 +57,6 @@ exports.findProduct = async (req, res) => {
 exports.FeatureProduts = async (req, res) => {
   try {
     const findProduct = await Products.find().sort({ rating: -1 }).limit(3);
-    // console.log(findProduct);
     res.status(200).json(findProduct);
   } catch (error) {
     res.status(500).json({ message: "something error" });
@@ -40,7 +65,9 @@ exports.FeatureProduts = async (req, res) => {
 
 exports.findProductType = async (req, res) => {
   try {
-    const findProduct = await Products.find({ foodType: req.params.type });
+    const findProduct = await Products.find({
+      foodType: { $regex: req.params.type, $options: "i" },
+    });
     res.status(201).json(findProduct);
   } catch (error) {
     res.status(500).json(error);
@@ -58,5 +85,18 @@ exports.getFavProduct = async (req, res) => {
     res.status(200).json(filterfavProduct);
   } catch (error) {
     res.status(500).json(error);
+  }
+};
+
+exports.searchProduct = async (req, res) => {
+  const foodName = req.query.foodname;
+  try {
+    const searchedFoood = await Products.find({
+      name: { $regex: foodName, $options: "i" },
+    });
+    console.log(searchedFoood);
+    res.status(200).json(searchedFoood);
+  } catch (err) {
+    res.status(500).json(err);
   }
 };
