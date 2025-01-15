@@ -35,6 +35,14 @@ exports.getAllproducts = async (req, res) => {
     res.status(500).json(error);
   }
 };
+exports.ourSpecial = async (req, res) => {
+  try {
+    const allProducts = await Products.find();
+    res.status(200).json(allProducts);
+  } catch (error) {
+    res.status(500).json(error);
+  }
+};
 
 exports.addProducts = async (req, res) => {
   try {

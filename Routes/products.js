@@ -7,9 +7,11 @@ const {
   FeatureProduts,
   getFavProduct,
   searchProduct,
+  ourSpecial,
 } = require("../Controller/productController");
 
 products.get("/", getAllproducts);
+products.get("/our-special", ourSpecial);
 products.post("/", addProducts);
 products.get("/productopen/:id", findProduct);
 products.get("/featureProducts", FeatureProduts);
