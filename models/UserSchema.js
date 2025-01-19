@@ -26,7 +26,8 @@ const userLogin = new mongoose.Schema(
       default: false,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
+  { versionKey: false }
 );
 
 module.exports = mongoose.model("User", userLogin);

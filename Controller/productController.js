@@ -3,8 +3,8 @@ const Products = require("../models/productsSchema");
 exports.getAllproducts = async (req, res) => {
   const { limit, skip } = req.query;
 
-  const Lm = Number.parseInt(limit);
-  const Sk = Number.parseInt(skip);
+  const Lm = Number.parseInt(limit) || 15;
+  const Sk = Number.parseInt(skip) || 0;
   console.log(Sk);
 
   try {
@@ -24,10 +24,10 @@ exports.getAllproducts = async (req, res) => {
     ]);
 
     let hasNextPage;
-    if (allProducts.length > Sk) {
-      hasNextPage = true;
-    } else {
+    if (allProducts.length < limit) {
       hasNextPage = false;
+    } else {
+      hasNextPage = true;
     }
     console.log(hasNextPage);
     res.status(200).json({ allProducts, hasNextPage });
@@ -37,7 +37,7 @@ exports.getAllproducts = async (req, res) => {
 };
 exports.ourSpecial = async (req, res) => {
   try {
-    const allProducts = await Products.find();
+    const allProducts = await Products.find().lead();
     res.status(200).json(allProducts);
   } catch (error) {
     res.status(500).json(error);
