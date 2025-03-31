@@ -3,29 +3,45 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors"); //for Preventing Security Risks when we use frontend connect with backend
 const cookieParser = require("cookie-parser");
+const path = require("path");
+const morgan = require("morgan");
+const { errorhandler } = require("./utility/errorhandler");
 
 const app = express();
 const port = process.env.PORT;
 
 //  MOngodb Connection here
 const mongodbConnect = async () => {
-  await mongoose.connect(process.env.MONGO_URL);
+  await mongoose.connect(process.env.MONGODB_LOCAL);
   console.log("DB connect successfully ...");
 };
 
 // middleware is here
 app.use(express.urlencoded({ extended: false })); //this is for our data is passing from urlencoded bodies in express
 app.use(express.json());
-app.use(cors());
-app.use(cookieParser());
+app.use("/uploads", express.static(path.join(__dirname, "Public")));
+app.use(
+  cors({
+    origin: `${process.env.LOCAL_URL}`,
+    credentials: true,
+  })
+);
+app.use(cookieParser({}));
+app.use(morgan("dev"));
+// errorhandler
+app.use(errorhandler);
 
 //  All routes Configerations is here
 const userRoute = require("./Routes/user");
 const productRoute = require("./Routes/products");
 
+//  Admin Route
+const AdminRoutes = require("./admin/index");
+
 // Router use is here
 app.use(userRoute);
 app.use("/food", productRoute);
+app.use(process.env.ADMIN_PREFIX, AdminRoutes);
 
 app.listen(5000, mongodbConnect(), () => {
   console.log(`Server is running on ${port}`);

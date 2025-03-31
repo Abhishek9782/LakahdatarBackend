@@ -10,20 +10,27 @@ const FoodSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    price: {
+    quantity: {
+      type: String,
+      enum: ["full", "half"],
+      default: "half",
+    },
+    fullprice: {
       type: Number,
-      required: true,
+    },
+    halfprice: {
+      type: Number,
     },
     foodType: {
       type: String,
     },
     food: {
       type: String,
-      required: true,
     },
     rating: {
       type: Number,
       default: 0,
+      max: 5,
     },
     desc: {
       type: String,
@@ -32,7 +39,14 @@ const FoodSchema = new mongoose.Schema(
       type: Number,
       default: 1,
     },
-    reviews: [],
+    offer: {
+      type: Number,
+    },
+    status: {
+      type: Number,
+      enum: [0, 1, 2],
+      default: 1,
+    },
   },
   { timestamps: true },
   { versionKey: false }
