@@ -23,12 +23,24 @@ const mongodbConnect = async () => {
 app.use(express.urlencoded({ extended: false })); //this is for our data is passing from urlencoded bodies in express
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "Public")));
+
+//  for live url
 app.use(
   cors({
-    origin: `${process.env.LOCAL_URL}`,
-    credentials: true,
+    origin: process.env.LIVE_URL,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true, // if you need to send cookies/auth headers
   })
 );
+
+//  for local url
+// app.use(
+//   cors({
+//     origin: process.env.LOCAL_URL,
+//     credentials: true,
+//   })
+// );
 app.use(cookieParser({}));
 app.use(morgan("dev"));
 // using this a user can make 100 request per 15 minutes
