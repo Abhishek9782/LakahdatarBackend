@@ -25,19 +25,19 @@ app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "Public")));
 
 //  for live url
-app.use(
-  cors({
-    origin: process.env.LIVE_URL,
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true, // if you need to send cookies/auth headers
-  })
-);
+const corsOptions = {
+  origin: `${process.env.LIVE_URL}`,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 
 //  for local url
 // app.use(
 //   cors({
-//     origin: process.env.LOCAL_URL,
+//     origin: `${process.env.LOCAL_URL}`,
 //     credentials: true,
 //   })
 // );
@@ -48,6 +48,14 @@ app.use(rateLimit({ window: 15 * 60 * 1000, max: 100 }));
 app.use(helmet());
 // errorhandler
 app.use(errorhandler);
+app.use((req, res, next) => {
+  console.log("Incoming request:", {
+    origin: req.headers.origin,
+    method: req.method,
+    headers: req.headers,
+  });
+  next();
+});
 
 //  All routes Configerations is here
 const userRoute = require("./Routes/user");
