@@ -6,13 +6,16 @@ const cookieParser = require("cookie-parser");
 const path = require("path");
 const morgan = require("morgan");
 const { errorhandler } = require("./utility/errorhandler");
-
+const rateLimit = require("express-rate-limit");
+const helmet = require("helmet");
 const app = express();
 const port = process.env.PORT;
 
 //  MOngodb Connection here
 const mongodbConnect = async () => {
-  await mongoose.connect(process.env.MONGODB_LOCAL);
+  // await mongoose.connect(process.env.MONGODB_LOCAL);
+  await mongoose.connect(process.env.MONGO_URL);
+
   console.log("DB connect successfully ...");
 };
 
@@ -28,6 +31,9 @@ app.use(
 );
 app.use(cookieParser({}));
 app.use(morgan("dev"));
+// using this a user can make 100 request per 15 minutes
+app.use(rateLimit({ window: 15 * 60 * 1000, max: 100 }));
+app.use(helmet());
 // errorhandler
 app.use(errorhandler);
 

@@ -1,6 +1,9 @@
+const asyncHandler = require("express-async-handler");
+
 const {
   errorResponse,
   successResponsewithData,
+  successResponse,
 } = require("../../utility/apirespone");
 const { ERROR, ADMIN, EMAILTEMPLATE } = require("../../utility/messages");
 const EmailTemplate = require("../../models/emailTemplate");
@@ -36,3 +39,11 @@ exports.AddTemplate = async (req, res) => {
     errorResponse(res, ERROR.somethingWentWrong);
   }
 };
+
+exports.getAllTemplate = asyncHandler(async (req, res, next) => {
+  successResponse(res, "Data founded...");
+  try {
+  } catch (err) {
+    return next({ statusCode: 400, message: ERROR.somethingWentWrong });
+  }
+});

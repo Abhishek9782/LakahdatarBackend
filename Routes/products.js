@@ -13,6 +13,6 @@ products.get("/getProduct/:id", getOneProduct);
 products.get("/our-special", ourSpecial);
 products.get("/featureProducts", FeatureProduts);
 products.get("/type/:type", findProductType);
-products.get("/favProduct/:id", getFavProduct);
+products.post("/favProduct", getFavProduct);
 
 module.exports = products;

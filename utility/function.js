@@ -37,4 +37,8 @@ const sendEmail = async (options) => {
   });
 };
 
-module.exports = { randomNumber, sendEmail };
+const removeSpecialchar = (str) => {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+};
+
+module.exports = { randomNumber, sendEmail, removeSpecialchar };

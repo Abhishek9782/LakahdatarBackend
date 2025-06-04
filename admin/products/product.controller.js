@@ -7,6 +7,7 @@ const {
 } = require("../../utility/messages");
 const Product = require("../../models/productsSchema");
 const apiresponse = require("../../utility/apirespone");
+const { removeSpecialchar } = require("../../utility/function");
 
 exports.productAdd = async (req, res) => {
   try {
@@ -107,16 +108,11 @@ exports.getAllProducts = async (req, res) => {
     let page = Math.max(0, pageNumber - 1); // set page number -1
     let sortOrder = sortorder ? sortorder : -1; //if sort order is coming then
     let sort = sortBy ? { [sortBy]: sortOrder } : { createdAt: -1 }; //sorting
-    let searchpattern;
-    if (searchItem) {
-      searchpattern = new RegExp(
-        searchItem.replace(/[^a-zA-Z0-9\s]/g, ""),
-        "i"
-      ); // remove special charechter
-    }
+
     let condition = { status: { $ne: 2 }, $and: [] };
-    if (searchpattern) {
-      condition.$and.push({ name: searchpattern });
+    if (searchItem) {
+      let safePattern = removeSpecialchar(searchItem);
+      condition.$and.push({ name: new RegExp(safePattern, "i") });
     }
     let product = await Product.find(condition)
       .skip(page * pageSize)

@@ -6,8 +6,14 @@ const { ERROR, USER, SUCCESS } = require("../utility/messages");
 const emailTemplate = require("../models/emailTemplate");
 const { sendEmail } = require("../utility/function");
 const Product = require("../models/productsSchema");
-const { default: mongoose } = require("mongoose");
 const Cart = require("../models/cartSchema");
+const Razorpay = require("razorpay");
+const crypto = require("crypto");
+
+const razorpayInstance = new Razorpay({
+  key_id: process.env.RAZORPAY_ID,
+  key_secret: process.env.RAZORPAY_SECRET,
+});
 
 exports.userRegister = async (req, res) => {
   try {
@@ -61,7 +67,6 @@ exports.userRegister = async (req, res) => {
 
         let tempcontent = template.content.replace("{fullname}", fullname);
         const message = tempcontent.replace("{otp}", otp);
-        console.log(message);
 
         sendEmail({
           email: email,
@@ -115,7 +120,6 @@ exports.userRegister = async (req, res) => {
 
     let tempcontent = template.content.replace("{fullname}", fullname);
     const message = tempcontent.replace("{otp}", otp);
-    console.log(message);
 
     sendEmail({
       email: email,
@@ -129,7 +133,6 @@ exports.userRegister = async (req, res) => {
       fullName: data.fullname,
     });
   } catch (error) {
-    console.log(error);
     apirespone.errorResponse(res, ERROR.somethingWentWrong);
     return;
   }
@@ -176,7 +179,6 @@ exports.verifyOtp = async (req, res) => {
     };
     apirespone.successResponsewithData(res, "Otp Verified SuccessFully.", data);
   } catch (error) {
-    console.log(error);
     apirespone.errorResponse(res, ERROR.somethingWentWrong);
   }
 };
@@ -358,7 +360,6 @@ exports.userLogin = async (req, res) => {
       return apirespone.errorResponse(res, ERROR.usernotFound);
     }
   } catch (error) {
-    console.log(error);
     return apirespone.errorResponse(res, ERROR.somethingWentWrong);
   }
 };
@@ -373,15 +374,15 @@ exports.getProfile = async (req, res) => {
     );
     apirespone.successResponsewithData(res, SUCCESS.dataFound, data);
   } catch (error) {
-    console.log(error);
     apirespone.errorResponse(res, ERROR.somethingWentWrong);
   }
 };
 //  Here we add to cart in user what he want to add his cart this can store in users database
 exports.addToCart = async (req, res) => {
   try {
-    if (!req.user) return apirespone.errorResponse(res, "Please Login");
-
+    if (!req.user) {
+      return apirespone.errorResponse(res, "You are not authenticate.");
+    }
     const { id: productId } = req.params;
     const { quantity: productQuantity } = req.body;
 
@@ -433,7 +434,6 @@ exports.addToCart = async (req, res) => {
     await cart.save();
     return apirespone.successResponse(res, "Cart Added  Successfully");
   } catch (error) {
-    console.error(error);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
@@ -445,7 +445,6 @@ exports.UserLogout = async (req, res) => {
     const findedUser = await User.findOne({ _id: userId });
     findedUser.carts = [];
     await findedUser.save();
-    // console.log(findedUser);
     res.status(200).json({ message: "Cart Clear SuccessFully...." });
   } catch (error) {
     res.status(500).json({ message: error });
@@ -455,8 +454,11 @@ exports.UserLogout = async (req, res) => {
 exports.usersCarts = async (req, res) => {
   const userId = req.user._id;
   try {
-    const carts = await Cart.findOne({ user: userId });
-    res.status(200).json(carts);
+    const carts = await Cart.findOne({ user: userId }).populate(
+      "carts.prodId",
+      "name src"
+    );
+    apirespone.successResponsewithData(res, "Data found", carts);
   } catch (error) {
     res.status(500).json(error);
   }
@@ -474,7 +476,6 @@ exports.userDecreaseCart = async (req, res) => {
     const productIndex = cart.carts.findIndex(
       (item) => item.prodId.toString() === productId
     );
-    console.log(productIndex);
 
     if (productIndex === -1)
       return apirespone.errorResponse(res, "Product not found in cart");
@@ -533,5 +534,80 @@ exports.userIncreamentCart = async (req, res) => {
     return apirespone.successResponse(res, "Carts Added SuccessFully.");
   } catch (error) {
     return res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+exports.addAddress = async (req, res) => {
+  try {
+    const { street, landmark, pno, apartment, city, state, postcode, country } =
+      req.body;
+  } catch (err) {
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+exports.createOrder = async (req, res) => {
+  const { amount } = req.body;
+  const options = {
+    amount: amount * 100, // convert to paise
+    currency: "INR",
+    receipt: `order_rcptid_${Date.now()}`,
+  };
+
+  try {
+    const order = await razorpayInstance.orders.create(options);
+
+    return res.status(200).json({ success: true, order });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+exports.verifyPayment = async (req, res) => {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+    req.body;
+
+  const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_SECRET);
+  hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
+  const generated_signature = hmac.digest("hex");
+
+  if (generated_signature === razorpay_signature) {
+    // ✅ Payment Successful
+    // Update order status to "Completed"
+    res.json({ success: true });
+  } else {
+    // ❌ Payment Failed
+    res.status(400).json({ success: false });
+  }
+};
+exports.paymentWebHook = async (req, res) => {
+  try {
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    const receivedSignature = req.headers["x-razorpay-signature"];
+
+    // ✅ Make sure req.body is Buffer here
+    const generatedSignature = crypto
+      .createHmac("sha256", secret)
+      .update(JSON.stringify(req.body)) // this should be Buffer, not Object
+      .digest("hex");
+
+    if (generatedSignature === receivedSignature) {
+      // ✅ Parse the body AFTER signature verification
+      const payload = req.body;
+      console.log("✅ Webhook verified:", payload);
+
+      if (payload.event === "payment.captured") {
+        console.log("🎉 Payment Captured:", payload.payload.payment.entity.id);
+        // update your DB here
+      }
+
+      res.status(200).json({ status: "ok" });
+    } else {
+      console.log("❌ Webhook signature mismatch");
+      res.status(400).send("Invalid signature");
+    }
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Oops something went wrong" });
   }
 };

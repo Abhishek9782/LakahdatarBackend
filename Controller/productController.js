@@ -107,15 +107,16 @@ exports.findProductType = async (req, res) => {
 };
 
 exports.getFavProduct = async (req, res) => {
-  const id = req.params.id;
-  const ids = id.split(",");
-  let data = [];
+  const id = req.body;
+
+  let filterProducts = [];
   try {
-    for (let i = 0; i < ids.length; i++) {
-      const data = await Products.findOne({ _id: ids[i] });
-      filterfavProduct.push(data);
+    for (let i = 0; i < id.length; i++) {
+      const data = await Products.findOne({ _id: id[i] });
+
+      filterProducts.push(data);
     }
-    apiresponse.successResponsewithData(res, SUCCESS.dataFound, data);
+    apiresponse.successResponsewithData(res, SUCCESS.dataFound, filterProducts);
   } catch (error) {
     apiresponse.errorResponse(res, ERROR.somethingWentWrong);
   }

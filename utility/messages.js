@@ -1,50 +1,50 @@
 const SUCCESS = {
-  dataFound: "Data Found SuccessFully.",
-  dataupdated: "Data Updated Successfully.",
-  DataDeleted: "Data Successfully Deleted. ",
+  dataFound: "Data found succesfully.",
+  dataupdated: "Data updated succesfully.",
+  DataDeleted: "Data succesfully deleted. ",
 };
 const CART = {
-  cartcreate: "Cart Created Successfully.",
+  cartcreate: "Cart created succesfully.",
 };
 
 const ERROR = {
   somethingWentWrong:
-    "Oops Something Went Wrong Please Try Again After Some time",
-  usernotFound: "User Not Found.",
+    "Oops something went wrong please try again after some time",
+  usernotFound: "User not found.",
 };
 const USER = {
-  notFound: "User Not Found.",
-  notAdmin: "You are not Admin.",
-  passwordwrong: "Password Wrong.",
-  loginSuccess: "Login SuccesFully.",
+  notFound: "User not found.",
+  notAdmin: "You are not admin.",
+  passwordwrong: "Password wrong.",
+  loginSuccess: "Login succesfully.",
 };
 
 const PRODUCT = {
-  productadded: "Added SuccessFully.",
-  productDelete: "Product Delete Successfully.",
-  productUpdated: "Product Updated Successfully.",
+  productadded: "Added succesfully.",
+  productDelete: "Product delete succesfully.",
+  productUpdated: "Product updated succesfully.",
 };
 
 const ADMIN = {
-  notAdmin: "You are Not Admin",
+  notAdmin: "You are not admin",
 };
 
 const EMAILTEMPLATE = {
-  templateadd: "Template Create SuccessFully.",
-  TemplateDeleted: "Template Deleted SuccessFully.",
-  templateupdated: "Template Update SuccessFully.",
-  alreadyExist: "Template Already Exist.",
+  templateadd: "Template create succesfully.",
+  TemplateDeleted: "Template deleted succesfully.",
+  templateupdated: "Template update succesfully.",
+  alreadyExist: "Template already exist.",
 };
 
 const CATEGORY = {
-  categoryNameRequired: "Category Name Must Be required",
-  categoryDescriptionRequired: "Category Description Must Be required",
-  categoryCreated: "Category Created SuccessFully.",
-  categoryUpdated: "Category Updated SuccessFully.",
-  categoryDeleted: "Category Delete SuccessFully.",
-  categoryActive: "Category Active SuccessFully.",
-  categoryInactive: "Category Inactive SuccessFully.",
-  categorynotFound: "Category Not Found .",
+  categoryNameRequired: "Category name must be required",
+  categoryDescriptionRequired: "Category description must be required",
+  categoryCreated: "Category created succesfully.",
+  categoryUpdated: "Category updated succesfully.",
+  categoryDeleted: "Category delete succesfully.",
+  categoryActive: "Category active succesfully.",
+  categoryInactive: "Category inactive succesfully.",
+  categorynotFound: "Category not found .",
 };
 
 module.exports = {
