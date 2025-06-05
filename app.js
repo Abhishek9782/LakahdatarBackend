@@ -32,15 +32,18 @@ const corsOptions = {
   credentials: true,
 };
 
-app.use(cors(corsOptions));
+// app.use(cors(corsOptions));
 
 //  for local url
-// app.use(
-//   cors({
-//     origin: `${process.env.LOCAL_URL}`,
-//     credentials: true,
-//   })
-// );
+// const corsOptions = {
+//   origin: `${process.env.LOCAL_URL}`,
+//   methods: ["GET", "POST", "PUT", "DELETE"],
+//   allowedHeaders: ["Content-Type", "Authorization"],
+//   credentials: true,
+// };
+
+app.use(cors(corsOptions));
+
 app.use(cookieParser({}));
 app.use(morgan("dev"));
 // using this a user can make 100 request per 15 minutes
