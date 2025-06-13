@@ -27,23 +27,22 @@ const orderSchema = new mongoose.Schema(
           type: Number,
           required: true,
         },
-        productOptions: {
-          type: Map,
-          of: String, // Customizations like size, toppings, etc.
-          default: {}, // Store customizations per product
-        },
-        freshness: {
-          type: String, // Fresh or frozen
-        },
-        expiryDate: {
-          type: Date, // For perishable items
-        },
       },
     ],
     totalAmount: {
       type: Number,
       required: true,
     },
+    Gst: {
+      type: Number,
+    },
+    deliveryTip: {
+      type: Number,
+    },
+    platformFees: {
+      type: Number,
+    },
+
     status: {
       type: String,
       enum: [
@@ -59,18 +58,23 @@ const orderSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["credit-card", "cash", "online-wallet", "other"],
-      required: true,
+      enum: [
+        "credit-card",
+        "cash",
+        "online-wallet",
+        "other",
+        "upi",
+        "netbanking",
+        "wallet",
+      ],
+      // required: true,
     },
     paymentStatus: {
       type: String,
-      enum: ["paid", "unpaid", "pending"],
+      enum: ["PAID", "UNPAID", "pending"],
       default: "pending", // Default status is unpaid or pending
     },
-    paymentType: {
-      type: String,
-      enum: ["cash", "credit-card", "debit-card", "net-banking"],
-    },
+
     discountType: {
       type: String,
       enum: ["percentage", "fixed"],
@@ -89,7 +93,7 @@ const orderSchema = new mongoose.Schema(
     },
     deliveryDate: {
       type: Date,
-      required: true, // Estimated delivery date/time
+      // required: true, // Estimated delivery date/time
     },
     orderReview: {
       type: String, // Customer's feedback
@@ -116,6 +120,16 @@ const orderSchema = new mongoose.Schema(
       type: mongoose.Types.ObjectId,
       ref: "DeliveryPerson", // Reference to the delivery person handling the order
     },
+    razorpayOrderId: {
+      type: String,
+      required: true,
+    },
+    razorpayPaymentId: {
+      type: String,
+      required: true,
+    },
   },
   { timestamps: true, versionKey: false }
 );
+
+module.exports = mongoose.model("order", orderSchema);

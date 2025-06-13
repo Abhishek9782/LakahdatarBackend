@@ -4,11 +4,13 @@ const bcrypt = require("bcrypt");
 const apirespone = require("../utility/apirespone");
 const { ERROR, USER, SUCCESS } = require("../utility/messages");
 const emailTemplate = require("../models/emailTemplate");
-const { sendEmail } = require("../utility/function");
+const { sendEmail, randomNumber } = require("../utility/function");
 const Product = require("../models/productsSchema");
 const Cart = require("../models/cartSchema");
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
+const Order = require("../models/orderSchema");
+const Address = require("../models/addresSchema");
 
 const razorpayInstance = new Razorpay({
   key_id: process.env.RAZORPAY_ID,
@@ -545,39 +547,143 @@ exports.addAddress = async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
-exports.createOrder = async (req, res) => {
-  const { amount } = req.body;
+// exports.createOrder = async (req, res) => {
+//   const {
+//     ptotal,
+//     gst,
+//     finalAmount,
+//     deliveryTip,
+//     platformFees,
+//     deliveryAddress,
+//   } = req.body;
+
+//   const user = req.user._id;
+
+//   try {
+//     const getcurrentUsersCarts = await Cart.findOne({ user: user });
+
+//     if (getcurrentUsersCarts) {
+//       const order = new Order({
+//         user: user,
+//         orderId: randomNumber(),
+//         products: getcurrentUsersCarts?.carts,
+//         totalAmount: finalAmount,
+//         Gst: gst,
+//         deliveryTip,
+//         platformFees,
+//         deliveryAddress: deliveryAddress,
+//       });
+//       await order.save();
+//     }
+
+//     const options = {
+//       amount: finalAmount * 100, // convert to paise
+//       currency: "INR",
+//       receipt: `order_rcptid_${Date.now()}`,
+//     };
+
+//     const order = await razorpayInstance.orders.create(options);
+
+//     return res.status(200).json({ success: true, order });
+//   } catch (error) {
+//     console.log(error);
+//     return res.status(500).json({ success: false, error: error.message });
+//   }
+// };
+
+exports.createPaymentOrder = async (req, res) => {
+  console.log(req.body, "body of creating payement");
+  const { finalAmount } = req.body;
+
   const options = {
-    amount: amount * 100, // convert to paise
+    amount: finalAmount * 100,
     currency: "INR",
-    receipt: `order_rcptid_${Date.now()}`,
+    receipt: `rcpt_${Date.now()}`,
   };
 
   try {
     const order = await razorpayInstance.orders.create(options);
+    res.status(200).json({ success: true, order });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+exports.createDbOrder = async (req, res) => {
+  console.log(req.body, "saving order");
+  const {
+    finalAmount,
+    gst,
+    deliveryTip,
+    platformFees,
+    deliveryAdd,
+    razorpay_order_id,
+    razorpay_payment_id,
+    paymentMethod,
+  } = req.body;
 
-    return res.status(200).json({ success: true, order });
+  console.log(req.body, "save order");
+
+  const user = req.user._id;
+
+  try {
+    const cartData = await Cart.findOne({ user });
+    if (!cartData) return res.status(404).json({ message: "Cart not found" });
+
+    const newOrder = new Order({
+      user,
+      orderId: `ORD-${Date.now()}`,
+      products: cartData.carts,
+      totalAmount: finalAmount,
+      Gst: gst,
+      deliveryTip,
+      platformFees,
+      deliveryAddress: deliveryAdd,
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
+      paymentStatus: "PAID",
+      paymentMethod: paymentMethod,
+    });
+
+    await newOrder.save();
+    await Cart.deleteOne({ user });
+
+    res.status(200).json({ success: true, order: newOrder });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
 exports.verifyPayment = async (req, res) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
     req.body;
+  console.log(req.body, "body verify payment ");
 
   const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_SECRET);
   hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
   const generated_signature = hmac.digest("hex");
 
   if (generated_signature === razorpay_signature) {
-    // ✅ Payment Successful
-    // Update order status to "Completed"
-    res.json({ success: true });
+    try {
+      const paymentDetails = await razorpayInstance.payments.fetch(
+        razorpay_payment_id
+      );
+      const paymentMethod = paymentDetails.method;
+
+      res.status(200).json({
+        success: true,
+        verified: true,
+        paymentMethod: paymentMethod,
+        paymentDetails, // optional: send full details to frontend
+      });
+    } catch (err) {
+      console.error("Failed to fetch payment details", err);
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to fetch payment method" });
+    }
   } else {
-    // ❌ Payment Failed
-    res.status(400).json({ success: false });
+    res.status(400).json({ success: false, verified: false });
   }
 };
 exports.paymentWebHook = async (req, res) => {
@@ -609,5 +715,32 @@ exports.paymentWebHook = async (req, res) => {
   } catch (err) {
     console.log(err);
     return res.status(500).json({ message: "Oops something went wrong" });
+  }
+};
+
+exports.AdduserAddress = async (req, res) => {
+  try {
+    if (!req.user) {
+      apirespone.errorResponse(res, ERROR.somethingWentWrong);
+    }
+    const { fullname, phone, address, city, state, postalCode, country } =
+      req.body;
+
+    const saveAddress = await Address.create({
+      user: req.user._id,
+      name: fullname,
+      street: address,
+      city: city,
+      state,
+      postalCode,
+      country,
+      phone,
+    });
+
+    if (saveAddress) {
+      apirespone.successResponse(res, "Address added successfully");
+    }
+  } catch (err) {
+    return res.status(500).json({ message: "Oops Something went Wrong " });
   }
 };

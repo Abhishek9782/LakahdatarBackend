@@ -14,9 +14,12 @@ const {
   changePassword,
   forgotPassword,
   addAddress,
-  createOrder,
+  // createOrder,
   verifyPayment,
   paymentWebHook,
+  AdduserAddress,
+  createPaymentOrder,
+  createDbOrder,
 } = require("../Controller/userController");
 const { userAuth } = require("../Middlewares/middlewares");
 
@@ -32,13 +35,15 @@ user.post("/logout", userAuth, UserLogout);
 user.get("/getAllCarts", userAuth, usersCarts);
 user.post("/cartDecreaseQty/:id", userAuth, userDecreaseCart);
 user.post("/cartIncreaseQty/:id", userAuth, userIncreamentCart);
-user.post("/user-address-add", addAddress);
-user.post("/api/create-order", createOrder);
-user.post("/api/verify-payment", verifyPayment);
+user.post("/user-address-add", userAuth, addAddress);
+user.post("/api/create-payment-order", userAuth, createPaymentOrder);
+user.post("/api/verify-payment", userAuth, verifyPayment);
+user.post("/save-order", userAuth, createDbOrder);
 user.post(
   "/api/payment/webhook",
   express.raw({ type: "application/json" }),
   paymentWebHook
 );
+user.post("/addaddress", userAuth, AdduserAddress);
 
 module.exports = user;

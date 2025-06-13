@@ -7,12 +7,12 @@ const addressSchema = new mongoose.Schema(
       ref: "User", // Reference to the User who owns the address
       required: true,
     },
-    addressLine1: {
+    name: {
+      type: String,
+    },
+    street: {
       type: String,
       required: true,
-    },
-    addressLine2: {
-      type: String, // Optional second line for address (e.g., apartment or suite number)
     },
     city: {
       type: String,

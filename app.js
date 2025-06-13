@@ -51,15 +51,6 @@ app.use(rateLimit({ window: 15 * 60 * 1000, max: 100 }));
 app.use(helmet());
 // errorhandler
 app.use(errorhandler);
-app.use((req, res, next) => {
-  console.log("Incoming request:", {
-    origin: req.headers.origin,
-    method: req.method,
-    headers: req.headers,
-  });
-  next();
-});
-
 //  All routes Configerations is here
 const userRoute = require("./Routes/user");
 const productRoute = require("./Routes/products");
@@ -70,6 +61,7 @@ const AdminRoutes = require("./admin/index");
 // Router use is here
 app.use(userRoute);
 app.use("/food", productRoute);
+app.use(require("./Routes/order")); // for all orderes
 app.use(process.env.ADMIN_PREFIX, AdminRoutes);
 
 app.listen(5000, mongodbConnect(), () => {
