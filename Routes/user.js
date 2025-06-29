@@ -29,7 +29,7 @@ user.post("/resendOtp", resendOtp);
 user.post("/user-login", userLogin);
 user.post("/changePassword", userAuth, changePassword);
 user.post("/forgotPassword", forgotPassword);
-user.get("/getProfile/:id", getProfile);
+user.get("/getProfile/:id", userAuth, getProfile);
 user.post("/addToCart/:id", userAuth, addToCart);
 user.post("/logout", userAuth, UserLogout);
 user.get("/getAllCarts", userAuth, usersCarts);

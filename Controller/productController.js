@@ -1,7 +1,7 @@
 const Products = require("../models/productsSchema");
 const mongoose = require("mongoose");
 const apiresponse = require("../utility/apirespone");
-const { SUCCESS, ERROR } = require("../utility/messages");
+const { SUCCESS, ERROR, FOOD } = require("../utility/messages");
 
 exports.getAllproducts = async (req, res) => {
   try {
@@ -31,6 +31,7 @@ exports.getAllproducts = async (req, res) => {
     }
 
     const data = await Products.find(condition, { __v: 0 })
+      .lean()
       .skip(page * pageSize)
       .limit(pageSize)
       .sort(sort);
@@ -43,7 +44,7 @@ exports.getAllproducts = async (req, res) => {
       totalCount,
     });
   } catch (error) {
-    apiresponse.errorResponse(res, ERROR.somethingWentWrong);
+    return apiresponse.serverError(res, ERROR.somethingWentWrong);
   }
 };
 exports.getOneProduct = async (req, res) => {
@@ -53,17 +54,21 @@ exports.getOneProduct = async (req, res) => {
       { _id: id, status: { $ne: 2 } },
       { __v: 0 }
     );
-    apiresponse.successResponsewithData(res, SUCCESS.dataFound, data);
+    return apiresponse.successResponsewithData(res, SUCCESS.dataFound, data);
   } catch (error) {
-    apiresponse.errorResponse(res, ERROR.somethingWentWrong);
+    return apiresponse.serverError(res, ERROR.somethingWentWrong);
   }
 };
 exports.ourSpecial = async (req, res) => {
   try {
-    const allProducts = await Products.find().lead();
-    res.status(200).json(allProducts);
+    const allProducts = await Products.find({ __v: 0 }).lean();
+    return apiresponse.successResponsewithData(
+      res,
+      SUCCESS.dataFound,
+      allProducts
+    );
   } catch (error) {
-    apiresponse.errorResponse(res, ERROR.somethingWentWrong);
+    return apiresponse.errorResponse(res, ERROR.somethingWentWrong);
   }
 };
 //  Here We make a query for top 3 Feature Products
@@ -75,18 +80,17 @@ exports.FeatureProduts = async (req, res) => {
     const data = await Products.find(condition, { __v: 0 })
       .sort({ rating: -1 })
       .limit(3);
-    apiresponse.successResponsewithData(res, SUCCESS.dataFound, data);
+    return apiresponse.successResponsewithData(res, SUCCESS.dataFound, data);
   } catch (error) {
-    apiresponse.errorResponse(res, ERROR.somethingWentWrong);
+    return apiresponse.serverError(res, ERROR.somethingWentWrong);
   }
 };
 exports.findProductType = async (req, res) => {
   try {
     const foodType = req.params.type.trim();
     if (!foodType) {
-      return apiresponse.errorResponse(res, "Food type is required.");
+      return apiresponse.errorResponse(res, FOOD.FoodtypeRequired);
     }
-
     // Improved query with regex
     const regex = new RegExp(`\\b${foodType}\\b`, "i"); // Ensures full word match
     const data = await Products.find({ foodType: regex }).lean(); // `.lean()` boosts performance
@@ -98,26 +102,23 @@ exports.findProductType = async (req, res) => {
         data
       );
     } else {
-      return apiresponse.errorResponse(res, "Currently Not Available");
+      return apiresponse.errorResponse(res, FOOD.notavailable);
     }
   } catch (error) {
-    console.error("Error fetching product type:", error);
-    return apiresponse.errorResponse(res, ERROR.somethingWentWrong);
+    return apiresponse.serverError(res, ERROR.somethingWentWrong);
   }
 };
 
 exports.getFavProduct = async (req, res) => {
-  const id = req.body;
-
-  let filterProducts = [];
+  const ids = req.body;
   try {
-    for (let i = 0; i < id.length; i++) {
-      const data = await Products.findOne({ _id: id[i] });
-
-      filterProducts.push(data);
-    }
-    apiresponse.successResponsewithData(res, SUCCESS.dataFound, filterProducts);
+    const favproducts = await Products.find({ _id: { $in: ids } }, { __v: 0 });
+    return apiresponse.successResponsewithData(
+      res,
+      SUCCESS.dataFound,
+      favproducts
+    );
   } catch (error) {
-    apiresponse.errorResponse(res, ERROR.somethingWentWrong);
+    return apiresponse.serverError(res, ERROR.somethingWentWrong);
   }
 };

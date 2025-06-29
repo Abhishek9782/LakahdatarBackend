@@ -24,16 +24,25 @@ const errorResponse = (res, msg) => {
   return res.status(400).json(dt);
 };
 
-const serverError = (req, msg) => {
+const serverError = (res, msg) => {
   const dt = {
     status: 0,
     message: msg,
   };
   return res.status(500).json(dt);
 };
+
+const AuthError = (res, msg) => {
+  const dt = {
+    status: 0,
+    message: msg,
+  };
+  return res.status(401).json(dt);
+};
 module.exports = {
   successResponse,
   successResponsewithData,
   errorResponse,
   serverError,
+  AuthError,
 };

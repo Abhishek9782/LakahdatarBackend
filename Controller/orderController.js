@@ -1,20 +1,21 @@
-const { ERROR } = require("../utility/messages");
+const { ERROR, AUTH } = require("../utility/messages");
 const Order = require("../models/orderSchema");
-const { successResponsewithData } = require("../utility/apirespone");
+const apiresponse = require("../utility/apirespone");
 
 exports.getAllorder = async (req, res) => {
   // startDate and Date are that data which is the user want filter that order according there dates
   if (!req.user) {
-    return res.status(401).json({ message: "You are not Authenticate " });
+    apiresponse.AuthError(res, AUTH.notAuth);
+    return;
   }
 
   let { status, startDate, endDate } = req.body;
 
-  console.log(req.body);
   const matchQuery = {};
 
   if (status && status !== "All") {
     status = status.toLowerCase();
+
     matchQuery.status = status;
   }
 
@@ -35,10 +36,14 @@ exports.getAllorder = async (req, res) => {
     const totalOrder = await Order.countDocuments(matchQuery);
 
     // return res.status(200).json({ orders, totalOrder });
-    successResponsewithData(res, "Data found", { orders, totalOrder });
+    apiresponse.successResponsewithData(res, "Data found", {
+      orders,
+      totalOrder,
+    });
     return;
   } catch (err) {
-    return res.status(500).json({ message: ERROR.somethingWentWrong });
+    apiresponse.serverError(res, ERROR.somethingWentWrong);
+    return;
   }
 };
 
@@ -46,9 +51,10 @@ exports.getOneOrder = async (req, res) => {
   const orderId = req.params.id;
   try {
     const order = await Order.findOne({ _id: orderId });
-    successResponsewithData(res, "data found", order);
+    apiresponse.successResponsewithData(res, "data found", order);
     return;
   } catch (err) {
-    return res.status(500).json({ message: ERROR.somethingWentWrong });
+    apiresponse.serverError(res, ERROR.somethingWentWrong);
+    return;
   }
 };

@@ -4,7 +4,23 @@ const SUCCESS = {
   DataDeleted: "Data succesfully deleted. ",
 };
 const CART = {
-  cartcreate: "Cart created succesfully.",
+  cartcreate: "Cart added succesfully.",
+  cartrermove: "Cart remove successfully.",
+  cartnotFound: "Cart not found.",
+};
+
+const AUTH = {
+  notAuth: "You are not authenticate.",
+};
+const FOOD = {
+  FoodtypeRequired: "Food type is required.",
+  notavailable: "Currently not available.",
+};
+const OTP = {
+  otpSent: "Otp sent on your email address .",
+  invalidOtp: "Invalid otp.",
+  otpExpire: "Otp expire. ",
+  otpVerified: "Otp verfied successfully.",
 };
 
 const ERROR = {
@@ -17,12 +33,21 @@ const USER = {
   notAdmin: "You are not admin.",
   passwordwrong: "Password wrong.",
   loginSuccess: "Login succesfully.",
+  accountExist: "Account alreadt Exist Please Login.",
+  validEmail: "Please enter a valid email address.",
+  passwordnotMatch: "Password not match.",
+  confirmPasswordnotMatch: "Confirm password not match.",
+  oldPasswordnotMatch: "Old password not match.",
+  passwordUpdated: "Password updated successfully.",
+  emailRequired: "Email Must be Required.",
+  registerMailId: "Please enter register email address.",
 };
 
 const PRODUCT = {
   productadded: "Added succesfully.",
   productDelete: "Product delete succesfully.",
   productUpdated: "Product updated succesfully.",
+  productnotFound: "Product not found.",
 };
 
 const ADMIN = {
@@ -47,6 +72,13 @@ const CATEGORY = {
   categorynotFound: "Category not found .",
 };
 
+const PAYMENT = {
+  done: "Payment success",
+};
+const ADDRESS = {
+  addressadded: "Address added successfully.",
+};
+
 module.exports = {
   SUCCESS,
   ERROR,
@@ -56,4 +88,9 @@ module.exports = {
   ADMIN,
   EMAILTEMPLATE,
   CATEGORY,
+  AUTH,
+  FOOD,
+  OTP,
+  PAYMENT,
+  ADDRESS,
 };

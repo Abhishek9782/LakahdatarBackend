@@ -30,7 +30,11 @@ const multerFilter = (req, file, cb) => {
     }
   }
 };
+1;
 
-const upload = multer({ storage: storage });
+const upload = multer({
+  storage: storage,
+  multerFilter,
+});
 
 module.exports = { upload };

@@ -2,9 +2,23 @@ const User = require("../models/UserSchema");
 const jwt = require("jsonwebtoken"); // we can genarete by using this token for knowing that it is user or not
 const bcrypt = require("bcrypt");
 const apirespone = require("../utility/apirespone");
-const { ERROR, USER, SUCCESS } = require("../utility/messages");
+const {
+  ERROR,
+  USER,
+  SUCCESS,
+  OTP,
+  AUTH,
+  PRODUCT,
+  CART,
+  PAYMENT,
+  ADDRESS,
+} = require("../utility/messages");
 const emailTemplate = require("../models/emailTemplate");
-const { sendEmail, randomNumber } = require("../utility/function");
+const {
+  sendEmail,
+  randomNumber,
+  checkValidEmail,
+} = require("../utility/function");
 const Product = require("../models/productsSchema");
 const Cart = require("../models/cartSchema");
 const Razorpay = require("razorpay");
@@ -22,14 +36,11 @@ exports.userRegister = async (req, res) => {
     if (req.body.email) req.body.email = req.body.email.toLowerCase();
     const { fullname, mobile, password, email, gender } = req.body;
 
-    let pattern =
-      /^[a-zA-Z0-9]+([._%+-]?[a-zA-Z0-9]+)*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-
-    let isValidEmail = pattern.test(email);
+    // check Valid Email
+    const isValidEmail = checkValidEmail(email);
 
     if (!isValidEmail) {
-      apirespone.errorResponse(res, "Please Enter a Valid Email id ");
-      return;
+      return apirespone.errorResponse(res, USER.validEmail);
     }
 
     const condition = {
@@ -46,8 +57,7 @@ exports.userRegister = async (req, res) => {
 
     if (isMatch) {
       if (isMatch.otpVerified) {
-        apirespone.errorResponse(res, "User Already Register Please Login");
-        return;
+        return apirespone.errorResponse(res, USER.accountExist);
       } else {
         const genrateotp = Math.floor(
           100000 + Math.random() * 900000
@@ -76,15 +86,11 @@ exports.userRegister = async (req, res) => {
           message: message,
         });
 
-        apirespone.successResponsewithData(
-          res,
-          "We sent a otp on your email id ",
-          {
-            email: isMatch.email,
-            mobile: isMatch.mobile,
-            fullName: isMatch.fullname,
-          }
-        );
+        apirespone.successResponsewithData(res, OTP.otpSent, {
+          email: isMatch.email,
+          mobile: isMatch.mobile,
+          fullName: isMatch.fullname,
+        });
         return;
       }
     }
@@ -104,8 +110,7 @@ exports.userRegister = async (req, res) => {
 
     // sending email on users email id
 
-    const genrateotp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otp = genrateotp.padStart(6, "0");
+    const otp = randomNumber();
     const otpExpirein = new Date() + 5 * 60 * 1000;
 
     const template = await emailTemplate.findOne(
@@ -129,14 +134,14 @@ exports.userRegister = async (req, res) => {
       message: message,
     });
 
-    apirespone.successResponsewithData(res, "We sent a otp on your email id ", {
+    apirespone.successResponsewithData(res, OTP.otpSent, {
       email: data.email,
       mobile: data.mobile,
       fullName: data.fullname,
     });
   } catch (error) {
-    apirespone.errorResponse(res, ERROR.somethingWentWrong);
-    return;
+    console.log(error);
+    return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
 
@@ -159,13 +164,11 @@ exports.verifyOtp = async (req, res) => {
 
     // check here otp not match
     if (user && user.otp !== otp) {
-      apirespone.errorResponse(res, "Invalid Otp ");
-      return;
+      return apirespone.errorResponse(res, OTP.invalidOtp);
     }
     // error for otp expire
     if (user && user.otpExpires > new Date()) {
-      apirespone.errorResponse(res, "Otp Expires");
-      return;
+      return apirespone.errorResponse(res, OTP.otpExpire);
     }
     //genrate a token
     const token = jwt.sign({ _id: user._id }, process.env.JWT_Secret_KEY);
@@ -179,9 +182,9 @@ exports.verifyOtp = async (req, res) => {
       fullname: user.fullname,
       mobile: user.mobile,
     };
-    apirespone.successResponsewithData(res, "Otp Verified SuccessFully.", data);
+    return apirespone.successResponsewithData(res, OTP.otpVerified, data);
   } catch (error) {
-    apirespone.errorResponse(res, ERROR.somethingWentWrong);
+    return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
 exports.resendOtp = async (req, res) => {
@@ -198,11 +201,10 @@ exports.resendOtp = async (req, res) => {
     //we find user
     const user = await User.findOne({ email: regexPattern });
     if (!user) {
-      apirespone.errorResponse(res, "User Not Found ");
+      apirespone.errorResponse(res, USER.notFound);
     }
 
-    const genrateotp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otp = genrateotp.padStart(6, "0");
+    const otp = randomNumber();
 
     const otpExpirein = new Date() + 5 * 60 * 1000;
 
@@ -227,17 +229,16 @@ exports.resendOtp = async (req, res) => {
       { otp: otp, otpExpires: otpExpirein }
     );
 
-    apirespone.successResponse(res, "Otp Sent SuccessFully.");
+    apirespone.successResponse(res, OTP.otpSent);
   } catch (error) {
-    return apirespone.errorResponse(res, ERROR.somethingWentWrong);
+    return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
 
 exports.changePassword = async (req, res) => {
   try {
     if (!req.user) {
-      apirespone.errorResponse(res, "Authenticate Token required");
-      return;
+      return apirespone.errorResponse(res, AUTH.notAuth);
     }
     const { oldPassword, newPassword, confirmPassword } = req.body;
     //  find user base on login user
@@ -246,19 +247,17 @@ exports.changePassword = async (req, res) => {
       { password: 1, _id: 1 }
     );
     if (!user) {
-      apirespone.errorResponse(res, "User Not Found ");
+      apirespone.errorResponse(res, USER.notFound);
     }
     // let match password old and new
     if (newPassword !== confirmPassword) {
-      apirespone.errorResponse(res, "Confirm Password not Match ");
-      return;
+      return apirespone.errorResponse(res, USER.confirmPasswordnotMatch);
     }
 
     //  let's match old passowrd with db password
     const isMatch = await bcrypt.compare(oldPassword, user.password);
     if (!isMatch) {
-      apirespone.errorResponse(res, "Old Password Not Match  ");
-      return;
+      return apirespone.errorResponse(res, USER.oldPasswordnotMatch);
     }
 
     // let's hash confirm  Password
@@ -269,17 +268,17 @@ exports.changePassword = async (req, res) => {
       { _id: user._id },
       { $set: { password: hashPassword } }
     );
-    apirespone.successResponse(res, "Password Update SuccessFully.");
+    return apirespone.successResponse(res, USER.passwordUpdated);
   } catch (error) {
-    apirespone.errorResponse(res, ERROR.somethingWentWrong);
+    return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
+
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {
-      apirespone.errorResponse(res, "Email Must be Required.");
-      return;
+      return apirespone.errorResponse(res, USER.emailRequired);
     }
     let regexPattern;
     if (email) {
@@ -295,11 +294,10 @@ exports.forgotPassword = async (req, res) => {
       { _id: 1, email: 1, fullname: 1 }
     );
     if (!user) {
-      apirespone.errorResponse(res, "Please Enter Register Email Id");
+      apirespone.errorResponse(res, USER.registerMailId);
     }
     // user exist and let send a otp on thier mailid
-    const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otp = randomOtp.padStart(6, "0");
+    const otp = randomNumber();
     const otpExpire = new Date() + 5 * 60 * 1000;
 
     // find template for forgottPassword
@@ -323,11 +321,11 @@ exports.forgotPassword = async (req, res) => {
       { otp: otp, otpExpires: otpExpire }
     );
 
-    apirespone.successResponse(res, "Otp sent SuccessFully.");
+    apirespone.successResponse(res, OTP.otpSent);
 
     //
   } catch (error) {
-    apirespone.errorResponse(res, ERROR.somethingWentWrongs);
+    apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
 
@@ -356,18 +354,21 @@ exports.userLogin = async (req, res) => {
           token
         );
       } else {
-        return apirespone.errorResponse(res, "Password Not Match");
+        return apirespone.errorResponse(res, USER.passwordnotMatch);
       }
     } else {
       return apirespone.errorResponse(res, ERROR.usernotFound);
     }
   } catch (error) {
-    return apirespone.errorResponse(res, ERROR.somethingWentWrong);
+    return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
 
 exports.getProfile = async (req, res) => {
   try {
+    if (!req.user) {
+      return apirespone.AuthError(res, AUTH.notAuth);
+    }
     const { id } = req.params;
 
     const data = await User.findOne(
@@ -376,21 +377,21 @@ exports.getProfile = async (req, res) => {
     );
     apirespone.successResponsewithData(res, SUCCESS.dataFound, data);
   } catch (error) {
-    apirespone.errorResponse(res, ERROR.somethingWentWrong);
+    apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
 //  Here we add to cart in user what he want to add his cart this can store in users database
 exports.addToCart = async (req, res) => {
   try {
     if (!req.user) {
-      return apirespone.errorResponse(res, "You are not authenticate.");
+      return apirespone.AuthError(res, AUTH.notAuth);
     }
     const { id: productId } = req.params;
     const { quantity: productQuantity } = req.body;
 
     // Check if the product exists
     const product = await Product.findById(productId);
-    if (!product) return apirespone.errorResponse(res, "Product Not Found");
+    if (!product) return apirespone.errorResponse(res, PRODUCT.productnotFound);
 
     const price =
       productQuantity === "full" ? product.fullprice : product.halfprice;
@@ -434,9 +435,9 @@ exports.addToCart = async (req, res) => {
     }
 
     await cart.save();
-    return apirespone.successResponse(res, "Cart Added  Successfully");
+    return apirespone.successResponse(res, CART.cartcreate);
   } catch (error) {
-    return res.status(500).json({ error: "Internal Server Error" });
+    return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
 
@@ -447,22 +448,25 @@ exports.UserLogout = async (req, res) => {
     const findedUser = await User.findOne({ _id: userId });
     findedUser.carts = [];
     await findedUser.save();
-    res.status(200).json({ message: "Cart Clear SuccessFully...." });
+    return apirespone.successResponse(res, CART.cartrermove);
   } catch (error) {
-    res.status(500).json({ message: error });
+    return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
 
 exports.usersCarts = async (req, res) => {
   const userId = req.user._id;
   try {
+    if (!req.user) {
+      return apirespone.AuthError(res, AUTH.notAuth);
+    }
     const carts = await Cart.findOne({ user: userId }).populate(
       "carts.prodId",
       "name src"
     );
-    apirespone.successResponsewithData(res, "Data found", carts);
+    return apirespone.successResponsewithData(res, SUCCESS.dataFound, carts);
   } catch (error) {
-    res.status(500).json(error);
+    return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
 
@@ -472,7 +476,7 @@ exports.userDecreaseCart = async (req, res) => {
     const productId = req.params.id;
     const cart = await Cart.findOne({ user: req.user._id });
 
-    if (!cart) return apirespone.errorResponse(res, "Cart not found");
+    if (!cart) return apirespone.errorResponse(res, CART.cartnotFound);
 
     // Find the index of the product in the cart
     const productIndex = cart.carts.findIndex(
@@ -480,7 +484,7 @@ exports.userDecreaseCart = async (req, res) => {
     );
 
     if (productIndex === -1)
-      return apirespone.errorResponse(res, "Product not found in cart");
+      return apirespone.errorResponse(res, PRODUCT.productnotFound);
 
     if (cart.carts[productIndex].qty > 1) {
       // Decrease quantity
@@ -490,7 +494,7 @@ exports.userDecreaseCart = async (req, res) => {
       cart.carts.splice(productIndex, 1);
       if (cart.carts.length === 0) {
         await Cart.findByIdAndDelete({ _id: cart._id });
-        return apirespone.successResponse(res, "Carts deleted SuccessFully.");
+        return apirespone.successResponse(res, CART.cartrermove);
       }
     }
     // Recalculate total amount
@@ -500,9 +504,9 @@ exports.userDecreaseCart = async (req, res) => {
     );
 
     await cart.save();
-    return apirespone.successResponse(res, "Carts deleted SuccessFully.");
+    return apirespone.successResponse(res, CART.cartrermove);
   } catch (error) {
-    return res.status(500).json({ error: "Internal Server Error" });
+    return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
 
@@ -512,7 +516,7 @@ exports.userIncreamentCart = async (req, res) => {
     const productId = req.params.id;
     const cart = await Cart.findOne({ user: req.user._id });
 
-    if (!cart) return apirespone.errorResponse(res, "Cart not found");
+    if (!cart) return apirespone.errorResponse(res, CART.cartnotFound);
 
     // Find the index of the product in the cart
     const productIndex = cart.carts.findIndex(
@@ -520,7 +524,7 @@ exports.userIncreamentCart = async (req, res) => {
     );
 
     if (productIndex === -1) {
-      return apirespone.errorResponse(res, "Product not found in cart");
+      return apirespone.errorResponse(res, PRODUCT.productnotFound);
     }
 
     // Decrease quantity
@@ -533,9 +537,9 @@ exports.userIncreamentCart = async (req, res) => {
     );
 
     await cart.save();
-    return apirespone.successResponse(res, "Carts Added SuccessFully.");
+    return apirespone.successResponse(res, CART.cartcreate);
   } catch (error) {
-    return res.status(500).json({ error: "Internal Server Error" });
+    return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
 
@@ -544,7 +548,7 @@ exports.addAddress = async (req, res) => {
     const { street, landmark, pno, apartment, city, state, postcode, country } =
       req.body;
   } catch (err) {
-    return res.status(500).json({ error: "Internal Server Error" });
+    return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
 // exports.createOrder = async (req, res) => {
@@ -592,7 +596,6 @@ exports.addAddress = async (req, res) => {
 // };
 
 exports.createPaymentOrder = async (req, res) => {
-  console.log(req.body, "body of creating payement");
   const { finalAmount } = req.body;
 
   const options = {
@@ -603,31 +606,31 @@ exports.createPaymentOrder = async (req, res) => {
 
   try {
     const order = await razorpayInstance.orders.create(options);
-    res.status(200).json({ success: true, order });
+    return apirespone.successResponsewithData(res, PAYMENT.done, {
+      success: true,
+      order,
+    });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
 exports.createDbOrder = async (req, res) => {
-  console.log(req.body, "saving order");
   const {
     finalAmount,
     gst,
     deliveryTip,
     platformFees,
-    deliveryAdd,
+    deliveryAddress,
     razorpay_order_id,
     razorpay_payment_id,
     paymentMethod,
   } = req.body;
 
-  console.log(req.body, "save order");
-
   const user = req.user._id;
 
   try {
     const cartData = await Cart.findOne({ user });
-    if (!cartData) return res.status(404).json({ message: "Cart not found" });
+    if (!cartData) return res.status(404).json({ message: CART.cartnotFound });
 
     const newOrder = new Order({
       user,
@@ -637,7 +640,7 @@ exports.createDbOrder = async (req, res) => {
       Gst: gst,
       deliveryTip,
       platformFees,
-      deliveryAddress: deliveryAdd,
+      deliveryAddress: deliveryAddress,
       razorpayOrderId: razorpay_order_id,
       razorpayPaymentId: razorpay_payment_id,
       paymentStatus: "PAID",
@@ -647,17 +650,18 @@ exports.createDbOrder = async (req, res) => {
     await newOrder.save();
     await Cart.deleteOne({ user });
 
-    res.status(200).json({ success: true, order: newOrder });
+    return apirespone.successResponsewithData(res, PAYMENT.done, {
+      success: true,
+      order: newOrder,
+    });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ success: false, error: error.message });
+    return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
 
 exports.verifyPayment = async (req, res) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
     req.body;
-  console.log(req.body, "body verify payment ");
 
   const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_SECRET);
   hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
@@ -677,9 +681,8 @@ exports.verifyPayment = async (req, res) => {
         paymentDetails, // optional: send full details to frontend
       });
     } catch (err) {
-      console.error("Failed to fetch payment details", err);
       res
-        .status(500)
+        .status(400)
         .json({ success: false, message: "Failed to fetch payment method" });
     }
   } else {
@@ -713,15 +716,14 @@ exports.paymentWebHook = async (req, res) => {
       res.status(400).send("Invalid signature");
     }
   } catch (err) {
-    console.log(err);
-    return res.status(500).json({ message: "Oops something went wrong" });
+    return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
 
 exports.AdduserAddress = async (req, res) => {
   try {
     if (!req.user) {
-      apirespone.errorResponse(res, ERROR.somethingWentWrong);
+      return apirespone.AuthError(res, AUTH.notAuth);
     }
     const { fullname, phone, address, city, state, postalCode, country } =
       req.body;
@@ -738,9 +740,9 @@ exports.AdduserAddress = async (req, res) => {
     });
 
     if (saveAddress) {
-      apirespone.successResponse(res, "Address added successfully");
+      return apirespone.successResponse(res, ADDRESS.addressadded);
     }
   } catch (err) {
-    return res.status(500).json({ message: "Oops Something went Wrong " });
+    return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };

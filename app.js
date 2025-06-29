@@ -13,8 +13,8 @@ const port = process.env.PORT;
 
 //  MOngodb Connection here
 const mongodbConnect = async () => {
-  // await mongoose.connect(process.env.MONGODB_LOCAL);
-  await mongoose.connect(process.env.MONGO_URL);
+  await mongoose.connect(process.env.MONGODB_LOCAL);
+  // await mongoose.connect(process.env.MONGO_URL);
 
   console.log("DB connect successfully ...");
 };
@@ -31,8 +31,6 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 };
-
-// app.use(cors(corsOptions));
 
 //  for local url
 // const corsOptions = {

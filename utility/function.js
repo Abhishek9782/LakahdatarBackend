@@ -2,7 +2,8 @@ const nodemailer = require("nodemailer");
 
 //  6 digit otp genrate
 const randomNumber = function randomNumber() {
-  return Math.floor(100000 + Math.random() * 900000);
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  return Number.parseInt(otp.padStart(6, "0"));
 };
 
 const sendEmail = async (options) => {
@@ -41,4 +42,15 @@ const removeSpecialchar = (str) => {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 };
 
-module.exports = { randomNumber, sendEmail, removeSpecialchar };
+const checkValidEmail = (email) => {
+  let pattern =
+    /^[a-zA-Z0-9]+([._%+-]?[a-zA-Z0-9]+)*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+  return pattern.test(email);
+};
+module.exports = {
+  randomNumber,
+  sendEmail,
+  removeSpecialchar,
+  checkValidEmail,
+};
