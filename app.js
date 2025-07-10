@@ -31,20 +31,20 @@ app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "Public")));
 
 //  for live url
-// const corsOptions = {
-//   origin: `${process.env.LIVE_URL}`,
-//   methods: ["GET", "POST", "PUT", "DELETE"],
-//   allowedHeaders: ["Content-Type", "Authorization"],
-//   credentials: true,
-// };
-
-//  for local url
 const corsOptions = {
-  origin: `${process.env.LOCAL_URL}`,
+  origin: `${process.env.LIVE_URL}`,
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 };
+
+//  for local url
+// const corsOptions = {
+//   origin: `${process.env.LOCAL_URL}`,
+//   methods: ["GET", "POST", "PUT", "DELETE"],
+//   allowedHeaders: ["Content-Type", "Authorization"],
+//   credentials: true,
+// };
 
 app.use(cors(corsOptions));
 
