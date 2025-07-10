@@ -54,7 +54,6 @@ const auth = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ message: "User not found" });
     }
-
     req.user = user;
     next();
   } catch (error) {

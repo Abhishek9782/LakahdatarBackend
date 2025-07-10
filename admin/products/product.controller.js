@@ -11,78 +11,15 @@ const apiresponse = require("../../utility/apirespone");
 const { removeSpecialchar } = require("../../utility/function");
 const path = require("path");
 const sharp = require("sharp");
-const fs = require("fs").promises;
+const fs = require("fs");
+const cloudinary = require("../../Middlewares/cloudinary");
 
-//  this api is i made for locally image save then i use sharp here to compress image and convert there type im webp
-// exports.productAdd = async (req, res) => {
-//   try {
-//     const { name, foodType, food, desc } = req.body;
-//     const fullprice = parseInt(req.body.fullprice);
-//     const halfprice = parseInt(req.body.halfprice);
-
-//     if (!req.file) {
-//       return apiresponse.errorResponse(res, "Image is required");
-//     }
-
-//     const originalPath = req.file.path;
-//     const filename = `product-${Date.now()}.webp`;
-//     const outputDir = path.join(__dirname, "../../Public/productImages");
-//     const outputPath = path.join(outputDir, filename);
-
-//     // ✅ Ensure output directory exists
-//     await fs.mkdir(outputDir, { recursive: true });
-
-//     // Convert image to webp using sharp
-//     // Process image to buffer (ensures file handle is released) it is giving image memory only and we are save itusing writefile
-//     const buffer = await sharp(originalPath)
-//       .resize(800)
-//       .webp({ quality: 80 })
-//       .toBuffer();
-
-//     // Save new .webp image
-//     await fs.writeFile(outputPath, buffer);
-
-//     // ✅ Try deleting the uploaded multer file with retry fallback
-//     try {
-//       await fs.unlink(originalPath);
-//     } catch (err) {
-//       if (err.code === "EPERM") {
-//         console.warn("File locked, retrying delete after delay...");
-//         await new Promise((resolve) => setTimeout(resolve, 300)); // wait 300ms
-//         try {
-//           await fs.unlink(originalPath);
-//           console.log("Successfully deleted after retry.");
-//         } catch (e2) {
-//           console.error("Still failed to delete:", e2.message);
-//         }
-//       } else {
-//         throw err;
-//       }
-//     }
-//     if (req.user?.role === "admin") {
-//       await Product.create({
-//         name,
-//         fullprice,
-//         halfprice,
-//         foodType,
-//         food,
-//         desc,
-//         src: filename,
-//       });
-
-//       return apiresponse.successResponse(res, PRODUCT.productadded);
-//     } else {
-//       return apiresponse.errorResponse(res, ADMIN.notAdmin);
-//     }
-//   } catch (error) {
-//     console.error("Error in productAdd:", error);
-//     return apiresponse.serverError(res, ERROR.somethingWentWrong);
-//   }
-// };
-
-//  in this api we use clodinary base multer so we got direct cdn which can we store in db
+//  Add product here using clodinary
 exports.productAdd = async (req, res) => {
   try {
+    if (req.error) {
+      console.log(req.error);
+    }
     const { name, foodType, food, desc } = req.body;
     const fullprice = parseInt(req.body.fullprice);
     const halfprice = parseInt(req.body.halfprice);
@@ -90,6 +27,13 @@ exports.productAdd = async (req, res) => {
     if (!req.file) {
       return apiresponse.errorResponse(res, "Image is required");
     }
+
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: "productImages",
+    });
+
+    //  delete image from public folder
+    fs.unlinkSync(req.file.path);
 
     if (req.user?.role === "admin") {
       await Product.create({
@@ -99,7 +43,7 @@ exports.productAdd = async (req, res) => {
         foodType,
         food,
         desc,
-        src: req.file.path,
+        src: result.secure_url,
       });
 
       return apiresponse.successResponse(res, PRODUCT.productadded);
@@ -222,7 +166,11 @@ exports.updateProduct = async (req, res) => {
     };
 
     if (req.file) {
-      updateData.src = req.file.path;
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: "productImages",
+      });
+      updateData.src = result.secure_url;
+      fs.unlinkSync(req.file.path);
     }
 
     await Product.updateOne({ _id: productId }, { $set: updateData });
