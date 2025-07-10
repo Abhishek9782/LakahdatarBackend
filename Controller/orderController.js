@@ -42,6 +42,7 @@ exports.getAllorder = async (req, res) => {
     });
     return;
   } catch (err) {
+    console.log(err);
     apiresponse.serverError(res, ERROR.somethingWentWrong);
     return;
   }

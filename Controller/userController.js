@@ -2,6 +2,7 @@ const User = require("../models/UserSchema");
 const jwt = require("jsonwebtoken"); // we can genarete by using this token for knowing that it is user or not
 const bcrypt = require("bcrypt");
 const apirespone = require("../utility/apirespone");
+// const client = require("../Middlewares/redis");
 const {
   ERROR,
   USER,
@@ -25,24 +26,147 @@ const Razorpay = require("razorpay");
 const crypto = require("crypto");
 const Order = require("../models/orderSchema");
 const Address = require("../models/addresSchema");
+const { registerSchema } = require("../utility/validate");
 
 const razorpayInstance = new Razorpay({
   key_id: process.env.RAZORPAY_ID,
   key_secret: process.env.RAZORPAY_SECRET,
 });
 
+// exports.userRegister = async (req, res) => {
+//   try {
+//     if (req.body.email) req.body.email = req.body.email.toLowerCase();
+//     const { fullname, mobile, password, email, gender } = req.body;
+
+//     // check Valid Email
+//     const isValidEmail = checkValidEmail(email);
+
+//     if (!isValidEmail) {
+//       return apirespone.errorResponse(res, USER.validEmail);
+//     }
+
+//     const condition = {
+//       status: { $ne: 2 },
+//       email: {
+//         $regex: new RegExp(
+//           "^" + email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$",
+//           "i"
+//         ),
+//       },
+//     };
+
+//     const isMatch = await User.findOne(condition);
+
+//     if (isMatch) {
+//       if (isMatch.otpVerified) {
+//         return apirespone.errorResponse(res, USER.accountExist);
+//       } else {
+//         const genrateotp = Math.floor(
+//           100000 + Math.random() * 900000
+//         ).toString();
+//         const otp = genrateotp.padStart(6, "0");
+//         const otpExpirein = new Date() + 5 * 60 * 1000;
+
+//         const template = await emailTemplate.findOne(
+//           {
+//             slug: process.env.USER_LOGIN_OTP,
+//           },
+//           { content: 1, subject: 1 }
+//         );
+
+//         await User.findByIdAndUpdate(
+//           { _id: isMatch._id },
+//           { otp: otp, otpExpires: otpExpirein }
+//         );
+
+//         let tempcontent = template.content.replace("{fullname}", fullname);
+//         const message = tempcontent.replace("{otp}", otp);
+
+//         sendEmail({
+//           email: email,
+//           subject: template.subject.toUpperCase(),
+//           message: message,
+//         });
+
+//         apirespone.successResponsewithData(res, OTP.otpSent, {
+//           email: isMatch.email,
+//           mobile: isMatch.mobile,
+//           fullName: isMatch.fullname,
+//         });
+//         return;
+//       }
+//     }
+
+//     // Hash Format For secure Our password
+//     const hashpassword = await bcrypt.hash(password, 10);
+//     const obj = {
+//       fullname: fullname,
+//       email: email,
+//       password: hashpassword,
+//       mobile: mobile,
+//       img:
+//         gender === "male"
+//           ? "https://avatar.iran.liara.run/public/boy"
+//           : "https://avatar.iran.liara.run/public/girl",
+//     };
+
+//     // sending email on users email id
+
+//     const otp = randomNumber();
+//     const otpExpirein = new Date() + 5 * 60 * 1000;
+
+//     const template = await emailTemplate.findOne(
+//       {
+//         slug: process.env.USER_LOGIN_OTP,
+//       },
+//       { content: 1, subject: 1 }
+//     );
+
+//     obj.otpExpires = otpExpirein;
+//     obj.otp = otp;
+
+//     const data = await User.create(obj);
+
+//     let tempcontent = template.content.replace("{fullname}", fullname);
+//     const message = tempcontent.replace("{otp}", otp);
+
+//     sendEmail({
+//       email: email,
+//       subject: template.subject.toUpperCase(),
+//       message: message,
+//     });
+
+//     apirespone.successResponsewithData(res, OTP.otpSent, {
+//       email: data.email,
+//       mobile: data.mobile,
+//       fullName: data.fullname,
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     return apirespone.serverError(res, ERROR.somethingWentWrong);
+//   }
+// };
+
 exports.userRegister = async (req, res) => {
   try {
+    // ✅ Step 1: Validate input using Joi
+    const { error } = registerSchema.validate(req.body);
+    if (error) {
+      const errors = error.details.map((err) => err.message);
+      return apirespone.errorResponse(res, errors);
+    }
+
+    // ✅ Step 2: Normalize email
     if (req.body.email) req.body.email = req.body.email.toLowerCase();
     const { fullname, mobile, password, email, gender } = req.body;
 
-    // check Valid Email
+    // ✅ Step 3: Check if email is valid (custom logic)
     const isValidEmail = checkValidEmail(email);
-
     if (!isValidEmail) {
       return apirespone.errorResponse(res, USER.validEmail);
     }
 
+    // ✅ Step 4: Check if user already exists
     const condition = {
       status: { $ne: 2 },
       email: {
@@ -59,11 +183,9 @@ exports.userRegister = async (req, res) => {
       if (isMatch.otpVerified) {
         return apirespone.errorResponse(res, USER.accountExist);
       } else {
-        const genrateotp = Math.floor(
-          100000 + Math.random() * 900000
-        ).toString();
-        const otp = genrateotp.padStart(6, "0");
-        const otpExpirein = new Date() + 5 * 60 * 1000;
+        // random function genrate 6 digit a random number
+        const genrateotp = randomNumber();
+        const otpExpirein = new Date(Date.now() + 5 * 60 * 1000);
 
         const template = await emailTemplate.findOne(
           {
@@ -86,32 +208,29 @@ exports.userRegister = async (req, res) => {
           message: message,
         });
 
-        apirespone.successResponsewithData(res, OTP.otpSent, {
+        return apirespone.successResponsewithData(res, OTP.otpSent, {
           email: isMatch.email,
           mobile: isMatch.mobile,
           fullName: isMatch.fullname,
         });
-        return;
       }
     }
 
-    // Hash Format For secure Our password
+    // ✅ Step 5: Hash password and create user
     const hashpassword = await bcrypt.hash(password, 10);
     const obj = {
-      fullname: fullname,
-      email: email,
+      fullname,
+      email,
       password: hashpassword,
-      mobile: mobile,
+      mobile,
       img:
         gender === "male"
           ? "https://avatar.iran.liara.run/public/boy"
           : "https://avatar.iran.liara.run/public/girl",
     };
 
-    // sending email on users email id
-
     const otp = randomNumber();
-    const otpExpirein = new Date() + 5 * 60 * 1000;
+    const otpExpirein = new Date(Date.now() + 5 * 60 * 1000);
 
     const template = await emailTemplate.findOne(
       {
@@ -129,18 +248,36 @@ exports.userRegister = async (req, res) => {
     const message = tempcontent.replace("{otp}", otp);
 
     sendEmail({
-      email: email,
+      email,
       subject: template.subject.toUpperCase(),
-      message: message,
+      message,
     });
 
-    apirespone.successResponsewithData(res, OTP.otpSent, {
+    return apirespone.successResponsewithData(res, OTP.otpSent, {
       email: data.email,
       mobile: data.mobile,
       fullName: data.fullname,
     });
   } catch (error) {
-    console.log(error);
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyValue)[0];
+      const value = error.keyValue[field];
+      return res.status(400).json({
+        success: false,
+        message: `Mobile Number Already Exists`,
+        error: error.keyValue,
+      });
+    }
+
+    // Handle validation or other errors
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: "Validation Failed",
+        errors: error.errors,
+      });
+    }
     return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
@@ -160,33 +297,41 @@ exports.verifyOtp = async (req, res) => {
       );
     }
     //  find here user with email
+
     const user = await User.findOne({ email: regexPattern });
 
     // check here otp not match
+
     if (user && user.otp !== otp) {
       return apirespone.errorResponse(res, OTP.invalidOtp);
     }
+
     // error for otp expire
+
     if (user && user.otpExpires > new Date()) {
       return apirespone.errorResponse(res, OTP.otpExpire);
     }
     //genrate a token
     const token = jwt.sign({ _id: user._id }, process.env.JWT_Secret_KEY);
+
     await User.findOneAndUpdate(
       { _id: user._id },
       { $set: { otpVerified: true, otp: null, otpExpires: null } }
     );
+
     const data = {
       token: token,
       email: user.email,
       fullname: user.fullname,
       mobile: user.mobile,
     };
+
     return apirespone.successResponsewithData(res, OTP.otpVerified, data);
   } catch (error) {
     return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
+
 exports.resendOtp = async (req, res) => {
   try {
     if (req.body.email) req.body.email = req.body.email.toLowerCase();
@@ -330,36 +475,57 @@ exports.forgotPassword = async (req, res) => {
 };
 
 exports.userLogin = async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const findUser = await User.findOne({
-      email: {
-        $regex: new RegExp(
-          "^" + email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$",
-          "i"
-        ),
-      },
-    });
-    if (findUser !== null) {
-      const ispassMatch = await bcrypt.compare(password, findUser.password);
-      if (ispassMatch) {
-        const token = jwt.sign(
-          { id: findUser._id },
-          process.env.JWT_Secret_KEY
-        );
+  const { email = "", password = "" } = req.body;
 
-        return apirespone.successResponsewithData(
-          res,
-          USER.loginSuccess,
-          token
-        );
-      } else {
-        return apirespone.errorResponse(res, USER.passwordnotMatch);
-      }
-    } else {
-      return apirespone.errorResponse(res, ERROR.usernotFound);
+  try {
+    // Validate inputs
+    if (!email.trim())
+      return apirespone.errorResponse(res, "Please enter an email address");
+    if (!password.trim())
+      return apirespone.errorResponse(res, "Please enter a password");
+
+    // Normalize and safely search user by email (case-insensitive)
+    const sanitizedEmail = email.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const findUser = await User.findOne({
+      email: { $regex: new RegExp(`^${sanitizedEmail}$`, "i") },
+    });
+
+    if (!findUser) return apirespone.errorResponse(res, ERROR.usernotFound);
+
+    // Check user status
+    if (findUser.status === 2) {
+      return apirespone.AuthError(
+        res,
+        "Your account is blocked. Please contact admin."
+      );
     }
+
+    if (findUser.status === 0) {
+      return apirespone.AuthError(
+        res,
+        "Your account is inactive. Please try again later."
+      );
+    }
+
+    // Check if role is allowed
+    if (findUser.role !== "user") {
+      return apirespone.errorResponse(res, USER.invalidCredential);
+    }
+
+    // Verify password
+    const isPasswordMatch = await bcrypt.compare(password, findUser.password);
+    if (!isPasswordMatch) {
+      return apirespone.errorResponse(res, USER.passwordnotMatch);
+    }
+
+    // Generate JWT
+    const token = jwt.sign({ id: findUser._id }, process.env.JWT_Secret_KEY, {
+      expiresIn: "7d",
+    });
+
+    return apirespone.successResponsewithData(res, USER.loginSuccess, token);
   } catch (error) {
+    console.error("Login Error:", error);
     return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
@@ -464,7 +630,12 @@ exports.usersCarts = async (req, res) => {
       "carts.prodId",
       "name src"
     );
-    return apirespone.successResponsewithData(res, SUCCESS.dataFound, carts);
+
+    return apirespone.successResponsewithData(
+      res,
+      SUCCESS.dataFound,
+      carts == null ? [] : carts
+    );
   } catch (error) {
     return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
@@ -551,6 +722,7 @@ exports.addAddress = async (req, res) => {
     return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
+
 // exports.createOrder = async (req, res) => {
 //   const {
 //     ptotal,
@@ -614,6 +786,7 @@ exports.createPaymentOrder = async (req, res) => {
     return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
+
 exports.createDbOrder = async (req, res) => {
   const {
     finalAmount,
@@ -689,6 +862,7 @@ exports.verifyPayment = async (req, res) => {
     res.status(400).json({ success: false, verified: false });
   }
 };
+
 exports.paymentWebHook = async (req, res) => {
   try {
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET;

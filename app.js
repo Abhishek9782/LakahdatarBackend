@@ -10,6 +10,10 @@ const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 const app = express();
 const port = process.env.PORT;
+const { v2 } = require("cloudinary");
+const redisClient = require("./Middlewares/redis");
+
+// check redis
 
 //  MOngodb Connection here
 const mongodbConnect = async () => {
@@ -18,6 +22,8 @@ const mongodbConnect = async () => {
 
   console.log("DB connect successfully ...");
 };
+
+async () => {};
 
 // middleware is here
 app.use(express.urlencoded({ extended: false })); //this is for our data is passing from urlencoded bodies in express
@@ -44,6 +50,7 @@ app.use(cors(corsOptions));
 
 app.use(cookieParser({}));
 app.use(morgan("dev"));
+
 // using this a user can make 100 request per 15 minutes
 app.use(rateLimit({ window: 15 * 60 * 1000, max: 100 }));
 app.use(helmet());
@@ -52,6 +59,7 @@ app.use(errorhandler);
 //  All routes Configerations is here
 const userRoute = require("./Routes/user");
 const productRoute = require("./Routes/products");
+const adminuserRoute = require("./admin/users/user.route");
 
 //  Admin Route
 const AdminRoutes = require("./admin/index");
@@ -61,7 +69,9 @@ app.use(userRoute);
 app.use("/food", productRoute);
 app.use(require("./Routes/order")); // for all orderes
 app.use(process.env.ADMIN_PREFIX, AdminRoutes);
+app.use(process.env.ADMIN_PREFIX, adminuserRoute);
 
-app.listen(5000, mongodbConnect(), () => {
-  console.log(`Server is running on ${port}`);
+app.listen(port || 5000, async () => {
+  await mongodbConnect();
+  console.log(`Server is running on port ${port || 5000}`);
 });

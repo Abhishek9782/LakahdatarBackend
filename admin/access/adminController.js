@@ -23,7 +23,7 @@ exports.adminLogin = async (req, res) => {
           let data = await jwt.sign(
             { _id: user._id },
             process.env.ADMIN_JWT_SECRET_KEY,
-            { expiresIn: process.env.ADMIN_TOKEN_EXPIRE }
+            { expiresIn: `${process.env.ADMIN_TOKEN_EXPIRE}` }
           );
           return apiresponse.successResponsewithData(
             res,

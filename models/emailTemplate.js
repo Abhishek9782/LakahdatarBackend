@@ -12,6 +12,11 @@ const emailTemplate = new mongoose.Schema(
     subject: {
       type: String,
     },
+    status: {
+      type: Number,
+      enum: [0, 1, 2],
+      default: 1,
+    },
     content: {
       type: String,
     },

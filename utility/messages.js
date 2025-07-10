@@ -41,6 +41,8 @@ const USER = {
   passwordUpdated: "Password updated successfully.",
   emailRequired: "Email Must be Required.",
   registerMailId: "Please enter register email address.",
+  invalidCredential: "Invalid credantial.",
+  userStatusUpdated: "User updated successfully.",
 };
 
 const PRODUCT = {

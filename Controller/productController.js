@@ -5,8 +5,8 @@ const { SUCCESS, ERROR, FOOD } = require("../utility/messages");
 
 exports.getAllproducts = async (req, res) => {
   try {
-    const { pageNumber, pageSize, searchItem, sortBy, sortorder } = req.body;
-
+    const { pageNumber, pageSize, searchItem, sortBy, sortorder } = req.query;
+    console.log(req.query);
     let page = Math.max(0, pageNumber - 1);
     let order = sortorder || -1;
     let sort = sortBy ? { [sortBy]: order } : { createdAt: -1 };
