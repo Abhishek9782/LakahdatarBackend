@@ -19,6 +19,7 @@ const {
   sendEmail,
   randomNumber,
   checkValidEmail,
+  calculateCartSummary,
 } = require("../utility/function");
 const Product = require("../models/productsSchema");
 const Cart = require("../models/cartSchema");
@@ -475,53 +476,82 @@ exports.forgotPassword = async (req, res) => {
 };
 
 exports.userLogin = async (req, res) => {
-  const { email = "", password = "" } = req.body;
+  const { email = "", password = "", carts = [], charges = {} } = req.body;
 
   try {
-    // Validate inputs
-    if (!email.trim())
+    // Basic validation
+    if (!email.trim()) {
       return apirespone.errorResponse(res, "Please enter an email address");
-    if (!password.trim())
-      return apirespone.errorResponse(res, "Please enter a password");
+    }
 
-    // Normalize and safely search user by email (case-insensitive)
+    if (!password.trim()) {
+      return apirespone.errorResponse(res, "Please enter a password");
+    }
+
+    // Case-insensitive and sanitized email lookup
     const sanitizedEmail = email.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const findUser = await User.findOne({
+
+    const user = await User.findOne({
       email: { $regex: new RegExp(`^${sanitizedEmail}$`, "i") },
     });
 
-    if (!findUser) return apirespone.errorResponse(res, ERROR.usernotFound);
+    if (!user) {
+      return apirespone.errorResponse(res, ERROR.usernotFound);
+    }
 
-    // Check user status
-    if (findUser.status === 2) {
+    // Account status checks
+    if (user.status === 2) {
       return apirespone.AuthError(
         res,
         "Your account is blocked. Please contact admin."
       );
     }
 
-    if (findUser.status === 0) {
+    if (user.status === 0) {
       return apirespone.AuthError(
         res,
         "Your account is inactive. Please try again later."
       );
     }
 
-    // Check if role is allowed
-    if (findUser.role !== "user") {
+    // Role validation
+    if (user.role !== "user") {
       return apirespone.errorResponse(res, USER.invalidCredential);
     }
 
-    // Verify password
-    const isPasswordMatch = await bcrypt.compare(password, findUser.password);
-    if (!isPasswordMatch) {
+    // Password verification
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
       return apirespone.errorResponse(res, USER.passwordnotMatch);
     }
 
-    // Generate JWT
-    const token = jwt.sign({ id: findUser._id }, process.env.JWT_Secret_KEY, {
+    // JWT Token generation
+    const token = jwt.sign({ id: user._id }, process.env.JWT_Secret_KEY, {
       expiresIn: "7d",
     });
+
+    // If carts exist in request, save to DB
+    if (Array.isArray(carts) && carts.length > 0) {
+      const transformedCarts = carts.map((cart) => ({
+        prodId: cart._id,
+        qty: cart.qty,
+        quantity: cart.quantity,
+        price: cart.quantity === "half" ? cart.halfprice : cart.fullprice,
+      }));
+
+      const cartDoc = new Cart({
+        user: user._id,
+        carts: transformedCarts,
+        subTotal: charges.subtotal || 0,
+        totalAmount: charges.finalAmount || 0,
+        deliveryFees: charges.deliveryFees || 0,
+        discountAmount: charges.discount || 0,
+        platformFees: charges.platformFees || 0,
+        gst: charges.gst || 0,
+      });
+
+      await cartDoc.save();
+    }
 
     return apirespone.successResponsewithData(res, USER.loginSuccess, token);
   } catch (error) {
@@ -566,13 +596,23 @@ exports.addToCart = async (req, res) => {
     let cart = await Cart.findOne({ user: req.user._id });
 
     if (!cart) {
+      const deliveryFees = price > 500 ? 0 : 50;
+      const platformFees = Math.round(price * 0.05); // 5%
+      const gst = Math.round(price * 0.1); // 10%
+      const discount = 0; // You can update this logic
+
+      const finalAmount = price + deliveryFees + platformFees + gst - discount;
       // Create a new cart
       cart = new Cart({
         user: req.user._id,
         carts: [
           { prodId: productId, qty: 1, quantity: productQuantity, price },
         ],
-        totalAmount: price,
+        subTotal: price,
+        platformFees: platformFees,
+        deliveryFees: deliveryFees,
+        gst: gst,
+        totalAmount: finalAmount,
       });
     } else {
       // Check if the product already exists with the same quantity type
@@ -593,16 +633,21 @@ exports.addToCart = async (req, res) => {
         });
       }
 
+      const calculateTotal = calculateCartSummary(cart);
+
       // Recalculate total amount
-      cart.totalAmount = cart.carts.reduce(
-        (total, item) => total + item.price * item.qty,
-        0
-      );
+      cart.subTotal = calculateTotal.subtotal;
+      cart.deliveryFees = calculateTotal.deliveryFees;
+      cart.platformFees = calculateTotal.platformFees;
+      cart.gst = calculateTotal.gst;
+      cart.discountAmount = calculateTotal.discount;
+      cart.totalAmount = calculateTotal.finalAmount;
     }
 
     await cart.save();
     return apirespone.successResponse(res, CART.cartcreate);
   } catch (error) {
+    console.log(error);
     return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
@@ -611,10 +656,10 @@ exports.addToCart = async (req, res) => {
 exports.UserLogout = async (req, res) => {
   try {
     const userId = req.user._id;
-    const findedUser = await User.findOne({ _id: userId });
-    findedUser.carts = [];
-    await findedUser.save();
-    return apirespone.successResponse(res, CART.cartrermove);
+    const usersCart = await Cart.deleteOne({ user: userId });
+    if (usersCart.acknowledged) {
+      return apirespone.successResponse(res, CART.cartrermove);
+    }
   } catch (error) {
     return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
@@ -668,11 +713,16 @@ exports.userDecreaseCart = async (req, res) => {
         return apirespone.successResponse(res, CART.cartrermove);
       }
     }
+
+    const calculateTotal = calculateCartSummary(cart);
+
     // Recalculate total amount
-    cart.totalAmount = cart.carts.reduce(
-      (total, item) => total + item.price * item.qty,
-      0
-    );
+    cart.subTotal = calculateTotal.subtotal;
+    cart.deliveryFees = calculateTotal.deliveryFees;
+    cart.platformFees = calculateTotal.platformFees;
+    cart.gst = calculateTotal.gst;
+    cart.discountAmount = calculateTotal.discount;
+    cart.totalAmount = calculateTotal.finalAmount;
 
     await cart.save();
     return apirespone.successResponse(res, CART.cartrermove);
@@ -698,14 +748,18 @@ exports.userIncreamentCart = async (req, res) => {
       return apirespone.errorResponse(res, PRODUCT.productnotFound);
     }
 
-    // Decrease quantity
+    // increase quantity
     cart.carts[productIndex].qty += 1;
 
+    const calculateTotal = calculateCartSummary(cart);
+
     // Recalculate total amount
-    cart.totalAmount = cart.carts.reduce(
-      (total, item) => total + item.price * item.qty,
-      0
-    );
+    cart.subTotal = calculateTotal.subtotal;
+    cart.deliveryFees = calculateTotal.deliveryFees;
+    cart.platformFees = calculateTotal.platformFees;
+    cart.gst = calculateTotal.gst;
+    cart.discountAmount = calculateTotal.discount;
+    cart.totalAmount = calculateTotal.finalAmount;
 
     await cart.save();
     return apirespone.successResponse(res, CART.cartcreate);

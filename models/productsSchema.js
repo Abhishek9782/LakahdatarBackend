@@ -17,9 +17,11 @@ const FoodSchema = new mongoose.Schema(
     },
     fullprice: {
       type: Number,
+      min: 1,
     },
     halfprice: {
       type: Number,
+      min: 1,
     },
     foodType: {
       type: String,
