@@ -1,5 +1,5 @@
 const { Router } = require("express");
-const fxn = require("./EmailTemplate.controller");
+const fxn = require("../../Controller/admin/emailTemplateController");
 const { auth } = require("../../Middlewares/middlewares");
 
 const router = Router();

@@ -8,6 +8,7 @@ const autoCancelledOrder = async () => {
       await orderSchema.updateMany(
         {
           status: "pending",
+          paymentStatus: "UNPAID" || "pending",
           createdAt: { $lte: tweleveHourago },
         },
         {

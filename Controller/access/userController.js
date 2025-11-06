@@ -1,7 +1,7 @@
-const User = require("../models/UserSchema");
+const User = require("../../models/UserSchema");
 const jwt = require("jsonwebtoken"); // we can genarete by using this token for knowing that it is user or not
 const bcrypt = require("bcrypt");
-const apirespone = require("../utility/apirespone");
+const apirespone = require("../../utility/apirespone");
 // const client = require("../Middlewares/redis");
 const {
   ERROR,
@@ -13,21 +13,22 @@ const {
   CART,
   PAYMENT,
   ADDRESS,
-} = require("../utility/messages");
-const emailTemplate = require("../models/emailTemplate");
+} = require("../../utility/messages");
+const emailTemplate = require("../../models/emailTemplate");
 const {
   sendEmail,
   randomNumber,
   checkValidEmail,
   calculateCartSummary,
-} = require("../utility/function");
-const Product = require("../models/productsSchema");
-const Cart = require("../models/cartSchema");
+} = require("../../utility/function");
+const Product = require("../../models/productsSchema");
+const Cart = require("../../models/cartSchema");
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
-const Order = require("../models/orderSchema");
-const Address = require("../models/addresSchema");
-const { registerSchema } = require("../utility/validate");
+const Order = require("../../models/orderSchema");
+const Address = require("../../models/addresSchema");
+const { registerSchema, loginValidate } = require("../../utility/validate");
+const { default: mongoose } = require("mongoose");
 
 const razorpayInstance = new Razorpay({
   key_id: process.env.RAZORPAY_ID,
@@ -152,6 +153,9 @@ exports.userRegister = async (req, res) => {
   try {
     // ✅ Step 1: Validate input using Joi
     const { error } = registerSchema.validate(req.body);
+    console.log(req.body);
+    console.log(error);
+
     if (error) {
       const errors = error.details.map((err) => err.message);
       return apirespone.errorResponse(res, errors);
@@ -163,49 +167,59 @@ exports.userRegister = async (req, res) => {
 
     // ✅ Step 3: Check if email is valid (custom logic)
     const isValidEmail = checkValidEmail(email);
+
     if (!isValidEmail) {
       return apirespone.errorResponse(res, USER.validEmail);
     }
+
+    const regex_Email = new RegExp(
+      "^" + email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$",
+      "i"
+    );
 
     // ✅ Step 4: Check if user already exists
     const condition = {
       status: { $ne: 2 },
       email: {
-        $regex: new RegExp(
-          "^" + email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$",
-          "i"
-        ),
+        $regex: regex_Email,
       },
     };
 
-    const isMatch = await User.findOne(condition);
+    const isMatch = await User.findOne(condition).lean();
 
+    console.log(isMatch);
+
+    //   if user exist
     if (isMatch) {
       if (isMatch.otpVerified) {
         return apirespone.errorResponse(res, USER.accountExist);
       } else {
         // random function genrate 6 digit a random number
-        const genrateotp = randomNumber();
+        const otp = randomNumber();
         const otpExpirein = new Date(Date.now() + 5 * 60 * 1000);
 
-        const template = await emailTemplate.findOne(
-          {
-            slug: process.env.USER_LOGIN_OTP,
-          },
-          { content: 1, subject: 1 }
-        );
+        // two promise are used to make sure both updates are done before resolving the promise
+        const [updateuser, temp] = await Promise.all([
+          User.findByIdAndUpdate(
+            { _id: isMatch._id },
+            { otp: otp, otpExpires: otpExpirein }
+          ),
+          emailTemplate
+            .findOne(
+              {
+                slug: process.env.USER_LOGIN_OTP,
+              },
+              { content: 1, subject: 1 }
+            )
+            .lean(),
+        ]);
 
-        await User.findByIdAndUpdate(
-          { _id: isMatch._id },
-          { otp: otp, otpExpires: otpExpirein }
-        );
-
-        let tempcontent = template.content.replace("{fullname}", fullname);
+        let tempcontent = temp.content.replace("{fullname}", fullname);
         const message = tempcontent.replace("{otp}", otp);
 
         sendEmail({
           email: email,
-          subject: template.subject.toUpperCase(),
+          subject: temp.subject.toUpperCase(),
           message: message,
         });
 
@@ -231,6 +245,7 @@ exports.userRegister = async (req, res) => {
     };
 
     const otp = randomNumber();
+
     const otpExpirein = new Date(Date.now() + 5 * 60 * 1000);
 
     const template = await emailTemplate.findOne(
@@ -246,6 +261,7 @@ exports.userRegister = async (req, res) => {
     const data = await User.create(obj);
 
     let tempcontent = template.content.replace("{fullname}", fullname);
+
     const message = tempcontent.replace("{otp}", otp);
 
     sendEmail({
@@ -299,7 +315,7 @@ exports.verifyOtp = async (req, res) => {
     }
     //  find here user with email
 
-    const user = await User.findOne({ email: regexPattern });
+    const user = await User.findOne({ email: regexPattern }).lean();
 
     // check here otp not match
 
@@ -318,7 +334,7 @@ exports.verifyOtp = async (req, res) => {
     await User.findOneAndUpdate(
       { _id: user._id },
       { $set: { otpVerified: true, otp: null, otpExpires: null } }
-    );
+    ).lean();
 
     const data = {
       token: token,
@@ -338,28 +354,31 @@ exports.resendOtp = async (req, res) => {
     if (req.body.email) req.body.email = req.body.email.toLowerCase();
     const { email } = req.body;
     let regexPattern;
+    const otp = randomNumber();
+    const otpExpirein = new Date() + 5 * 60 * 1000;
+
     if (email) {
       regexPattern = new RegExp(
         "^" + email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$",
         "i"
       );
     }
-    //we find user
-    const user = await User.findOne({ email: regexPattern });
+
+    const [template, user] = await Promise.all([
+      emailTemplate
+        .findOne(
+          {
+            slug: process.env.USER_LOGIN_OTP,
+          },
+          { content: 1, subject: 1 }
+        )
+        .lean(),
+      User.findOne({ email: regexPattern }).lean(),
+    ]);
+
     if (!user) {
       apirespone.errorResponse(res, USER.notFound);
     }
-
-    const otp = randomNumber();
-
-    const otpExpirein = new Date() + 5 * 60 * 1000;
-
-    const template = await emailTemplate.findOne(
-      {
-        slug: process.env.USER_LOGIN_OTP,
-      },
-      { content: 1, subject: 1 }
-    );
 
     let tempcontent = template.content.replace("{fullname}", user.fullname);
     const message = tempcontent.replace("{otp}", otp);
@@ -391,7 +410,7 @@ exports.changePassword = async (req, res) => {
     const user = await User.findOne(
       { _id: req.user._id },
       { password: 1, _id: 1 }
-    );
+    ).lean();
     if (!user) {
       apirespone.errorResponse(res, USER.notFound);
     }
@@ -413,7 +432,7 @@ exports.changePassword = async (req, res) => {
     const updatePassword = await User.findOneAndUpdate(
       { _id: user._id },
       { $set: { password: hashPassword } }
-    );
+    ).lean();
     return apirespone.successResponse(res, USER.passwordUpdated);
   } catch (error) {
     return apirespone.serverError(res, ERROR.somethingWentWrong);
@@ -477,8 +496,15 @@ exports.forgotPassword = async (req, res) => {
 
 exports.userLogin = async (req, res) => {
   const { email = "", password = "", carts = [], charges = {} } = req.body;
-
   try {
+    const { error } = loginValidate.validate(req.body);
+
+    if (error) {
+      const errors = error?.details.map(
+        (error) => `${error.path}:${error.message}`
+      );
+      return apirespone.errorResponse(res, errors);
+    }
     // Basic validation
     if (!email.trim()) {
       return apirespone.errorResponse(res, "Please enter an email address");
@@ -490,10 +516,13 @@ exports.userLogin = async (req, res) => {
 
     // Case-insensitive and sanitized email lookup
     const sanitizedEmail = email.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex_Mail = new RegExp(`^${sanitizedEmail}$`, "i");
 
     const user = await User.findOne({
-      email: { $regex: new RegExp(`^${sanitizedEmail}$`, "i") },
-    });
+      email: { $regex: regex_Mail },
+      status: { $ne: 2 },
+      role: "user",
+    }).lean();
 
     if (!user) {
       return apirespone.errorResponse(res, ERROR.usernotFound);
@@ -503,14 +532,14 @@ exports.userLogin = async (req, res) => {
     if (user.status === 2) {
       return apirespone.AuthError(
         res,
-        "Your account is blocked. Please contact admin."
+        "Your account is blocked. Kindly contact with admin."
       );
     }
 
     if (user.status === 0) {
       return apirespone.AuthError(
         res,
-        "Your account is inactive. Please try again later."
+        "Your account is inactive. Kindly contact with admin."
       );
     }
 
@@ -536,7 +565,7 @@ exports.userLogin = async (req, res) => {
         prodId: cart._id,
         qty: cart.qty,
         quantity: cart.quantity,
-        price: cart.quantity === "half" ? cart.halfprice : cart.fullprice,
+        price: cart.quantity === "half" ? cart?.halfprice : cart?.fullprice,
       }));
 
       const cartDoc = new Cart({
@@ -553,6 +582,12 @@ exports.userLogin = async (req, res) => {
       await cartDoc.save();
     }
 
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // for 7 days
+    });
     return apirespone.successResponsewithData(res, USER.loginSuccess, token);
   } catch (error) {
     console.error("Login Error:", error);
@@ -567,10 +602,9 @@ exports.getProfile = async (req, res) => {
     }
     const { id } = req.params;
 
-    const data = await User.findOne(
-      { _id: id },
-      { password: 0, __v: 0, otp: 0, otpExpires: 0 }
-    );
+    const data = await User.findOne({ _id: id })
+      .select("fullname email role status mobile img address")
+      .lean();
     apirespone.successResponsewithData(res, SUCCESS.dataFound, data);
   } catch (error) {
     apirespone.serverError(res, ERROR.somethingWentWrong);
@@ -671,10 +705,9 @@ exports.usersCarts = async (req, res) => {
     if (!req.user) {
       return apirespone.AuthError(res, AUTH.notAuth);
     }
-    const carts = await Cart.findOne({ user: userId }).populate(
-      "carts.prodId",
-      "name src"
-    );
+    const carts = await Cart.findOne({ user: userId })
+      .populate("carts.prodId", "name src")
+      .lean();
 
     return apirespone.successResponsewithData(
       res,
@@ -777,50 +810,7 @@ exports.addAddress = async (req, res) => {
   }
 };
 
-// exports.createOrder = async (req, res) => {
-//   const {
-//     ptotal,
-//     gst,
-//     finalAmount,
-//     deliveryTip,
-//     platformFees,
-//     deliveryAddress,
-//   } = req.body;
-
-//   const user = req.user._id;
-
-//   try {
-//     const getcurrentUsersCarts = await Cart.findOne({ user: user });
-
-//     if (getcurrentUsersCarts) {
-//       const order = new Order({
-//         user: user,
-//         orderId: randomNumber(),
-//         products: getcurrentUsersCarts?.carts,
-//         totalAmount: finalAmount,
-//         Gst: gst,
-//         deliveryTip,
-//         platformFees,
-//         deliveryAddress: deliveryAddress,
-//       });
-//       await order.save();
-//     }
-
-//     const options = {
-//       amount: finalAmount * 100, // convert to paise
-//       currency: "INR",
-//       receipt: `order_rcptid_${Date.now()}`,
-//     };
-
-//     const order = await razorpayInstance.orders.create(options);
-
-//     return res.status(200).json({ success: true, order });
-//   } catch (error) {
-//     console.log(error);
-//     return res.status(500).json({ success: false, error: error.message });
-//   }
-// };
-
+// razorpay payment create here using this api
 exports.createPaymentOrder = async (req, res) => {
   const { finalAmount } = req.body;
 
@@ -841,51 +831,6 @@ exports.createPaymentOrder = async (req, res) => {
   }
 };
 
-exports.createDbOrder = async (req, res) => {
-  const {
-    finalAmount,
-    gst,
-    deliveryTip,
-    platformFees,
-    deliveryAddress,
-    razorpay_order_id,
-    razorpay_payment_id,
-    paymentMethod,
-  } = req.body;
-
-  const user = req.user._id;
-
-  try {
-    const cartData = await Cart.findOne({ user });
-    if (!cartData) return res.status(404).json({ message: CART.cartnotFound });
-
-    const newOrder = new Order({
-      user,
-      orderId: `ORD-${Date.now()}`,
-      products: cartData.carts,
-      totalAmount: finalAmount,
-      Gst: gst,
-      deliveryTip,
-      platformFees,
-      deliveryAddress: deliveryAddress,
-      razorpayOrderId: razorpay_order_id,
-      razorpayPaymentId: razorpay_payment_id,
-      paymentStatus: "PAID",
-      paymentMethod: paymentMethod,
-    });
-
-    await newOrder.save();
-    await Cart.deleteOne({ user });
-
-    return apirespone.successResponsewithData(res, PAYMENT.done, {
-      success: true,
-      order: newOrder,
-    });
-  } catch (error) {
-    return apirespone.serverError(res, ERROR.somethingWentWrong);
-  }
-};
-
 exports.verifyPayment = async (req, res) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
     req.body;
@@ -900,12 +845,14 @@ exports.verifyPayment = async (req, res) => {
         razorpay_payment_id
       );
       const paymentMethod = paymentDetails.method;
+      const paymentStatus = paymentDetails.status;
 
       res.status(200).json({
         success: true,
         verified: true,
         paymentMethod: paymentMethod,
         paymentDetails, // optional: send full details to frontend
+        paymentStatus,
       });
     } catch (err) {
       res
@@ -914,6 +861,63 @@ exports.verifyPayment = async (req, res) => {
     }
   } else {
     res.status(400).json({ success: false, verified: false });
+  }
+};
+
+exports.createDbOrder = async (req, res) => {
+  const {
+    finalAmount,
+    gst,
+    deliveryTip,
+    platformFees,
+    deliveryAddress,
+    razorpay_order_id,
+    razorpay_payment_id,
+    paymentMethod,
+    paymentStatus,
+  } = req.body;
+
+  const user = new mongoose.Types.ObjectId(req.user?._id);
+
+  try {
+    if (!req.user || req.user.role !== "user") {
+      return apirespone.AuthError(res, AUTH.notAuth);
+    }
+
+    const cartData = await Cart.findOne({ user });
+
+    if (!cartData) return res.status(404).json({ message: CART.cartnotFound });
+
+    cartData.carts.forEach((cart) => {
+      console.log(cart);
+    });
+
+    const newOrder = new Order({
+      user,
+      orderId: `ORD-${Date.now()}`,
+      products: cartData.carts,
+      totalAmount: finalAmount,
+      Gst: gst,
+      deliveryTip,
+      platformFees,
+      deliveryAddress: deliveryAddress,
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
+      paymentStatus: "PAID",
+      paymentMethod: paymentMethod,
+      status: paymentStatus === "authorized" ? "completed" : "cancelled",
+    });
+
+    // await newOrder.save();
+    // await Cart.deleteOne({ user });
+
+    return apirespone.successResponsewithData(res, PAYMENT.done, {
+      success: true,
+      order: newOrder,
+    });
+  } catch (error) {
+    console.log(error);
+    return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
 

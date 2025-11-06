@@ -2,9 +2,16 @@ const { Router } = require("express");
 const router = Router();
 const { upload } = require("../../Middlewares/multer");
 const { auth } = require("../../Middlewares/middlewares");
-const fxn = require("./product.controller");
+const fxn = require("../../Controller/admin/productController");
+const { sanitizeFields } = require("../../utility/function");
 //  Product Handle
-router.post("/productadd", auth, upload.single("src"), fxn.productAdd);
+router.post(
+  "/productadd",
+  auth,
+  upload.single("src"),
+  sanitizeFields,
+  fxn.productAdd
+);
 
 router.put("/deleteproduct/:id", auth, fxn.productDelete);
 

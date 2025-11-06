@@ -1,5 +1,4 @@
 const {
-  USER,
   ERROR,
   PRODUCT,
   SUCCESS,
@@ -8,50 +7,52 @@ const {
 } = require("../../utility/messages");
 const Product = require("../../models/productsSchema");
 const apiresponse = require("../../utility/apirespone");
-const { removeSpecialchar } = require("../../utility/function");
-const path = require("path");
-const sharp = require("sharp");
+const HelperFunction = require("../../utility/function");
 const fs = require("fs");
-const cloudinary = require("../../Middlewares/cloudinary");
 
 //  Add product here using clodinary
 exports.productAdd = async (req, res) => {
+  const { name, foodType, food, desc } = req.body;
+  const fullprice = parseInt(req.body.fullprice);
+  const halfprice = parseInt(req.body.halfprice);
   try {
     if (req.error) {
       console.log(req.error);
     }
-    const { name, foodType, food, desc } = req.body;
-    const fullprice = parseInt(req.body.fullprice);
-    const halfprice = parseInt(req.body.halfprice);
+    if (!req.user || req.user?.role !== "admin") {
+      return apiresponse.errorResponse(res, ADMIN.notAdmin);
+    }
 
     if (!req.file) {
       return apiresponse.errorResponse(res, "Image is required");
     }
 
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: "productImages",
+    //  here should i also connect sharp to reduce image quality
+
+    const imageUrl = await HelperFunction.enhanceanduploadCloudImage(
+      res,
+      req.file.path
+    );
+
+    await HelperFunction.deleteLocalImage(req.file?.path);
+
+    console.log(req.body);
+
+    await Product.create({
+      name,
+      fullprice,
+      halfprice,
+      desc,
+      src: imageUrl,
+      restaurant: new mongoose.Types.ObjectId("68f8bda727f71619a224f153"),
     });
 
-    //  delete image from public folder
-    fs.unlinkSync(req.file.path);
-
-    if (req.user?.role === "admin") {
-      await Product.create({
-        name,
-        fullprice,
-        halfprice,
-        foodType,
-        food,
-        desc,
-        src: result.secure_url,
-      });
-
-      return apiresponse.successResponse(res, PRODUCT.productadded);
-    } else {
-      return apiresponse.errorResponse(res, ADMIN.notAdmin);
-    }
+    return apiresponse.successResponse(res, PRODUCT.productadded);
   } catch (error) {
-    console.error("Error in productAdd:", error);
+    console.log(error);
+    if (error) {
+      await HelperFunction.deleteLocalImage(req.file.path);
+    }
     return apiresponse.serverError(res, ERROR.somethingWentWrong);
   }
 };
@@ -166,11 +167,18 @@ exports.updateProduct = async (req, res) => {
     };
 
     if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: "productImages",
-      });
-      updateData.src = result.secure_url;
-      fs.unlinkSync(req.file.path);
+      // const result = await cloudinary.uploader.upload(req.file.path, {
+      //   folder: "productImages",
+      // });
+      // updateData.src = result.secure_url;
+      const imagepath = await enhanceanduploadCloudImage(req.file.path);
+      if (imagepath) {
+        updateData.src = imagepath;
+        fs.unlink(req.file.path, (err) => {
+          if (err) console.log(err);
+          console.log("Image deleted successfully");
+        });
+      }
     }
 
     await Product.updateOne({ _id: productId }, { $set: updateData });
@@ -196,7 +204,7 @@ exports.getAllProducts = async (req, res) => {
 
     let condition = { status: { $ne: 2 }, $and: [] };
     if (searchItem) {
-      let safePattern = removeSpecialchar(searchItem);
+      let safePattern = HelperFunction.removeSpecialchar(searchItem);
       condition.$and.push({ name: new RegExp(safePattern, "i") });
     }
     let product = await Product.find(condition)

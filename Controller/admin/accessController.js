@@ -19,11 +19,11 @@ exports.adminLogin = async (req, res) => {
     if (user && user.email === email.toLocaleLowerCase()) {
       const isMatchPassword = await bcrypt.compare(password, user.password);
       if (isMatchPassword) {
-        if (user.role == "admin") {
+        if (user?.role == "admin") {
           let data = await jwt.sign(
             { _id: user._id },
             process.env.ADMIN_JWT_SECRET_KEY,
-            { expiresIn: `${process.env.ADMIN_TOKEN_EXPIRE}` }
+            { expiresIn: "1d" }
           );
           return apiresponse.successResponsewithData(
             res,

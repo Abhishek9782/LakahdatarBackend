@@ -7,11 +7,17 @@ const orderSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    restaurant: {
+      type: mongoose.Types.ObjectId,
+      ref: "Restaurant",
+      required: true,
+    },
     orderId: {
       type: String,
       required: true,
       unique: true, // Ensure that the orderId is unique
     },
+
     products: [
       {
         prodId: {
@@ -23,6 +29,7 @@ const orderSchema = new mongoose.Schema(
           type: Number,
           required: true,
         },
+        // optional
         price: {
           type: Number,
           required: true,
@@ -49,10 +56,13 @@ const orderSchema = new mongoose.Schema(
         "pending", // Order received but not processed
         "confirmed", // Order confirmed by the restaurant
         "preparing", // Food being prepared
+        "pickup", // this status for delivery boy
         "out-for-delivery", // Order is on the way
         "delivered", // Food delivered to customer
         "completed", // Order completed (final status)
         "cancelled", // Order cancelled
+        "refund-initiated",
+        "failed",
       ],
       default: "pending", // Default order status
     },
@@ -95,21 +105,7 @@ const orderSchema = new mongoose.Schema(
       type: Date,
       // required: true, // Estimated delivery date/time
     },
-    orderReview: {
-      type: String, // Customer's feedback
-    },
-    orderRating: {
-      type: Number,
-      min: 1,
-      max: 5,
-    },
-    reviewDate: {
-      type: Date, // Date when the review was submitted
-    },
-    orderDate: {
-      type: Date,
-      default: Date.now, // When the order was placed
-    },
+
     estimatedDeliveryTime: {
       type: Date, // Estimated time for delivery
     },

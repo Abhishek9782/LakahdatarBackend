@@ -1,75 +1,93 @@
+// ------------------ Imports ------------------
 const dotenv = require("dotenv").config();
 const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors"); //for Preventing Security Risks when we use frontend connect with backend
+const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const path = require("path");
 const morgan = require("morgan");
 const { errorhandler } = require("./utility/errorhandler");
-const rateLimit = require("express-rate-limit");
+const { rateLimit } = require("express-rate-limit");
 const helmet = require("helmet");
+const compression = require("compression");
+const mongoSanitize = require("express-mongo-sanitize");
+const xssClean = require("xss-clean");
+const { mongodbConnect } = require("./config/dbconfig");
+const { autoCancelledOrder } = require("./utility/cron");
+const helperFunction = require("./utility/function");
+
 const app = express();
-const port = process.env.PORT;
+const port = process.env.PORT || 5000;
 
-//  MOngodb Connection here
-const mongodbConnect = async () => {
-  await mongoose.connect(process.env.MONGO_URL);
-  // await mongoose.connect(process.env.MONGO_URL);
-
-  console.log("DB connect successfully ...");
-};
-
-// middleware is here
-app.use(express.urlencoded({ extended: false })); //this is for our data is passing from urlencoded bodies in express
-app.use(express.json());
-app.use("/uploads", express.static(path.join(__dirname, "Public")));
-
-//  for live url
+// ------------------ Security / CORS ------------------
 const corsOptions = {
-  origin: `${process.env.LIVE_URL}`,
+  origin: process.env.LIVE_URL,
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 };
 
-//  for local url
-// const corsOptions = {
-//   origin: `${process.env.LOCAL_URL}`,
-//   methods: ["GET", "POST", "PUT", "DELETE"],
-//   allowedHeaders: ["Content-Type", "Authorization"],
-//   credentials: true,
-// };
+const serverRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many requests, try again after some time...",
+});
 
-app.use(cors(corsOptions));
+// ------------------ Connect DB ------------------
+mongodbConnect();
 
-app.use(cookieParser({}));
+// ------------------ Global Middlewares ------------------
+
+// Parse body FIRST (so others can use req.body)
+app.use(express.json({ limit: "50kb" }));
+
+app.use(express.urlencoded({ extended: true }));
+
+// Security Headers
+app.use(helmet());
+
+// Response compression
+app.use(compression());
+
+// Logging
 app.use(morgan("dev"));
 
-// using this a user can make 100 request per 15 minutes
-app.use(rateLimit({ window: 15 * 60 * 1000, max: 100 }));
-app.use(helmet()); // Helps secure Express apps by setting various HTTP headers like:
-// errorhandler
+// Static Files
+app.use("/uploads", express.static(path.join(__dirname, "Public")));
+
+// Cookie parser
+app.use(cookieParser());
+
+// CORS
+app.use(cors(corsOptions));
+
+// Rate limiting
+app.use(serverRateLimiter);
+
+// MongoDB Injection Protection
+app.use(mongoSanitize());
+
+// Basic XSS filter for JSON/urlencoded payloads
+app.use(xssClean());
+
+// --- Sanitize all inputs, even multipart/form-data ---
+app.use(helperFunction.sanitizeFields);
+// ------------------ Routes ------------------
+app.use(process.env.API_VERSION, require("./Routes/index"));
+
+// ------------------ Error Handling ------------------
 app.use(errorhandler);
-//  All routes Configerations is here
-const userRoute = require("./Routes/user");
-const productRoute = require("./Routes/products");
-const adminuserRoute = require("./admin/users/user.route");
+app.use((err, req, res, next) => {
+  console.error("Unhandled Error:", err);
+  res.status(500).json({ message: err.message });
+});
 
-//  Admin Route
-const AdminRoutes = require("./admin/index");
-const { autoCancelledOrder } = require("./utility/cron");
-
-// Router use is here
-app.use(userRoute);
-app.use("/food", productRoute);
-app.use(require("./Routes/order")); // for all orderes
-app.use(process.env.ADMIN_PREFIX, AdminRoutes);
-app.use(process.env.ADMIN_PREFIX, adminuserRoute);
-
-// node cron function auto call here
+// ------------------ Cron Jobs ------------------
 autoCancelledOrder();
 
-app.listen(port || 5000, async () => {
+// ------------------ Server ------------------
+app.listen(port, async () => {
   await mongodbConnect();
-  console.log(`Server is running on port ${port || 5000}`);
+  console.log(`✅ Server running on port ${port}`);
 });

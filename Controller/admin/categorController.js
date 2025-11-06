@@ -1,40 +1,58 @@
 const apiResponse = require("../../utility/apirespone");
 const { ERROR, ADMIN, CATEGORY } = require("../../utility/messages");
-const Category = require("../../models/parentCategory");
+const Category = require("../../models/Category");
 const { default: mongoose } = require("mongoose");
+const Tags = require("../../models/tags");
+const HelperFunction = require("../../utility/function");
+const fs = require("fs");
 
 //  add Category
 exports.createCategory = async (req, res) => {
   try {
-    if (!req.user.role == "admin") {
-      apiResponse.errorResponse(res, ADMIN.notAdmin);
-      return;
+    if (!req.user || req.user?.role !== "admin") {
+      return apiResponse.errorResponse(res, ADMIN.notAdmin);
     }
     const { name, description } = req.body;
     if (!name) {
-      apiResponse.errorResponse(res, CATEGORY.categoryNameRequired);
-      return;
+      return apiResponse.errorResponse(res, CATEGORY.categoryNameRequired);
     }
     if (!description) {
-      apiResponse.errorResponse(res, CATEGORY.categoryDescriptionRequired);
-      return;
+      return apiResponse.errorResponse(
+        res,
+        CATEGORY.categoryDescriptionRequired
+      );
     }
-    let image;
-    if (req.file) {
-      image = req.file.filename;
+    if (!req.file) {
+      return apiResponse.errorResponse(res, CATEGORY.categoryImageRequired);
     }
-    // const category = await Category.create({
-    //   name: name,
-    //   description: description,
-    //   image: image ? image : null,
-    // });
-    apiResponse.successResponsewithData(
+
+    const imageUrl = await HelperFunction.enhanceanduploadCloudImage(
       res,
-      CATEGORY.categoryCreated,
-      category
+      req.file.path
     );
+
+    const createCategory = new Category({
+      name: name,
+      description: description,
+      image: imageUrl,
+    });
+
+    const savedCategory = await createCategory.save();
+
+    await HelperFunction.deleteLocalImage(req.file.path); //safe now
+
+    // apiResponse.successResponsewithData(res, CATEGORY.categoryCreated, savedCategory);
   } catch (err) {
-    apiResponse.errorResponse(res, ERROR.somethingWentWrong);
+    if (err.code === 11000) {
+      return apiResponse.errorResponse(
+        res,
+        `Category "${req.body.name}" already exists`
+      );
+    }
+
+    console.log(err);
+
+    return apiResponse.serverError(res, ERROR.somethingWentWrong);
   }
 };
 
@@ -126,5 +144,18 @@ exports.categoryStatusUpdate = async (req, res) => {
   } catch (err) {
     apiResponse.errorResponse(res, ERROR.somethingWentWrong);
     return;
+  }
+};
+
+exports.getAllCategories = async (req, res) => {
+  try {
+    const categoryes = await Category.find();
+    return apiResponse.successResponsewithData(
+      res,
+      CATEGORY.categoriesFetched,
+      categoryes
+    );
+  } catch (err) {
+    return apiResponse.serverError(res, ERROR.somethingWentWrong);
   }
 };

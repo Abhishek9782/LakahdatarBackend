@@ -1,4 +1,10 @@
+const fs = require("fs/promises"); // important!
 const nodemailer = require("nodemailer");
+const { rateLimit } = require("express-rate-limit");
+const sharp = require("sharp");
+const cloudinary = require("../config/cloudinary");
+const { errorResponse } = require("./apirespone");
+const sanitizeHtml = require("sanitize-html");
 
 //  6 digit otp genrate
 const randomNumber = function randomNumber() {
@@ -72,10 +78,79 @@ const calculateCartSummary = (cartItems) => {
   };
 };
 
+// login Limitior only 5 times
+
+const loginLimitior = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000,
+  max: 100,
+  handler: (req, res) => {
+    return res.status(429).json({ message: "Too Many Login Attempts" });
+  },
+});
+
+const enhanceanduploadCloudImage = async (res, filePath) => {
+  try {
+    const resizedImage = await sharp(filePath)
+      .resize(800)
+      .webp({ quality: 60 })
+      .toBuffer();
+
+    const base64EncodedImage = `data:image/webp;base64,${resizedImage.toString(
+      "base64"
+    )}`;
+
+    const result = await cloudinary.uploader.upload(base64EncodedImage, {
+      folder: "productImages",
+    });
+
+    sharp.cache(false); //close the cache to free up memory
+    return result.secure_url;
+  } catch (error) {
+    console.error("Error in image uploader function:", error);
+    throw error;
+  }
+};
+
+const deleteLocalImage = async (path) => {
+  try {
+    await fs.unlink(path);
+    console.log("✅ File deleted from local storage");
+  } catch (err) {
+    console.error("❌ Error deleting local file:", err);
+  }
+};
+
+const sanitizeFields = (req, res, next) => {
+  if (!req.body) return next();
+
+  const clean = (value) => {
+    if (typeof value === "string") {
+      return sanitizeHtml(value, {
+        allowedTags: [],
+        allowedAttributes: {},
+        textFilter: (text) => text.trim(),
+      });
+    }
+    if (typeof value === "object" && value !== null) {
+      for (const key in value) {
+        value[key] = clean(value[key]);
+      }
+    }
+    return value;
+  };
+
+  req.body = clean(req.body);
+  next();
+};
+
 module.exports = {
   randomNumber,
   sendEmail,
   removeSpecialchar,
   checkValidEmail,
   calculateCartSummary,
+  loginLimitior,
+  enhanceanduploadCloudImage,
+  deleteLocalImage,
+  sanitizeFields,
 };

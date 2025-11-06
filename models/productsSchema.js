@@ -29,6 +29,15 @@ const FoodSchema = new mongoose.Schema(
     food: {
       type: String,
     },
+    tags: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+      },
+    ],
+    restaurant: {
+      type: mongoose.Types.ObjectId,
+      required: true,
+    },
     rating: {
       type: Number,
       default: 0,

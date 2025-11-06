@@ -40,7 +40,7 @@ const userLoginSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["user", "admin", "delivery-person"],
+      enum: ["user", "admin", "delivery-person", "vendor"],
       default: "user",
     },
     status: {
@@ -55,8 +55,8 @@ const userLoginSchema = new mongoose.Schema(
       },
     ],
     preferences: {
-      favoriteCategories: [String], // Store user preferences like favorite food categories
-      dietaryRestrictions: [String], // Track user's dietary preferences or restrictions (e.g., vegetarian, gluten-free)
+      favoriteCategories: [mongoose.Types.ObjectId], // Store user preferences like favorite food categories
+      dietaryRestrictions: [mongoose.Schema.Types.ObjectId], // Track user's dietary preferences or restrictions (e.g., vegetarian, gluten-free)
     },
     emailVerified: {
       type: Boolean,
@@ -92,5 +92,7 @@ const userLoginSchema = new mongoose.Schema(
   },
   { timestamps: true, versionKey: false }
 );
+
+userLoginSchema.index({ email: 1, fullname: 1 });
 
 module.exports = mongoose.model("User", userLoginSchema);

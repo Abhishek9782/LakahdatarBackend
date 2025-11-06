@@ -1,4 +1,4 @@
-const fxn = require("./adminController");
+const fxn = require("../../Controller/admin/accessController");
 
 const router = require("express").Router();
 

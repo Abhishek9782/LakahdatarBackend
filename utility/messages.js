@@ -13,7 +13,7 @@ const AUTH = {
   notAuth: "You are not authenticate.",
 };
 const FOOD = {
-  FoodtypeRequired: "Food type is required.",
+  required: "Food type is required.",
   notavailable: "Currently not available.",
 };
 const OTP = {
@@ -27,6 +27,7 @@ const ERROR = {
   somethingWentWrong:
     "Oops something went wrong please try again after some time",
   usernotFound: "User not found.",
+  updateError: "update has error. try after some time ",
 };
 const USER = {
   notFound: "User not found.",
@@ -65,13 +66,14 @@ const EMAILTEMPLATE = {
 
 const CATEGORY = {
   categoryNameRequired: "Category name must be required",
-  categoryDescriptionRequired: "Category description must be required",
+  categoryDescriptionRequired: "Category must be required",
   categoryCreated: "Category created succesfully.",
   categoryUpdated: "Category updated succesfully.",
   categoryDeleted: "Category delete succesfully.",
   categoryActive: "Category active succesfully.",
   categoryInactive: "Category inactive succesfully.",
   categorynotFound: "Category not found .",
+  categoryImageRequired: "Category image required.",
 };
 
 const PAYMENT = {
@@ -79,6 +81,70 @@ const PAYMENT = {
 };
 const ADDRESS = {
   addressadded: "Address added successfully.",
+};
+
+const VENDOR = {
+  restaurantCreated: "Restaurant created successfully.",
+  restaurantUpdated: "Restaurant updated successfully.",
+  restaurantDeleted: "Restaurant deleted successfully.",
+  emailAlreadyExist: "Email already exists.",
+  mobileExists: "Phone number already exists.",
+  restaurantNotFound: "Restaurant not found.",
+  vendorNotFound: "Vendor not found.",
+  otpsent: "OTP sent to your registered mobile number.",
+  otpExpired: "OTP has expired. Please request a new one.",
+  otpnotMatched: "Invalid Otp.",
+  otpVerified: "OTP verified successfully.",
+  invalidCredential: "Invalid credantial.",
+  unauthorizedAccess: "Unauthorized access.",
+  profileFetched: "Profile fetched successfully.",
+  adminHaveAccess: "You are not admin.",
+  profileupdated: "Profile updated successfully.",
+  statusUpdate: "Vendor status updated successfully.",
+  imageRequired: "Product image required.",
+  foodFetched: "Food fetched successfully.",
+  foodUpdated: "Food updated successfully.",
+  foodDeleted: "Food deleted successfully.",
+  foodNotFound: "Food not found.",
+  foodImageRequired: "Food image required.",
+  foodTypeRequired: "Food type required.",
+  foodPriceRequired: "Food price required.",
+  foodStatusRequired: "Food status required.",
+  foodCreated: "Food created successfully.",
+  foodTypeUpdated: "Food type updated successfully.",
+  foodTypeDeleted: "Food type deleted successfully.",
+  foodTypeNotFound: "Food type not found.",
+  foodActive: "Food type active successfully.",
+  foodInactive: "Food type inactive successfully.",
+  orderFetched: "Order fetched successfully.",
+  orderStatusRequired: "Order status required.",
+  orderStatusUpdated: "Order status updated successfully.",
+  orderCreated: "Order created successfully.",
+  orderDeleted: "Order deleted successfully.",
+  orderNotFound: "Order not found.",
+  orderCompleted: "Order completed successfully.",
+  review: "Review get successfully.",
+  reviewDisable: "Review hidden successfully.",
+  reviewShow: "Review appear successfully.",
+  approvalRequired: "Approval field required",
+  reviewIdRequired: "Review id required.",
+  emailPasswordrequired: "Email id and Password Required.",
+};
+
+const REVIEW = {
+  reviewFound: "Review found successfully.",
+  reviewnotFound: "Review not found.",
+  reviewupdated: "Review updated successfully.",
+};
+
+const DB = {
+  validationError: "Required field missing.", //field is missing get that field and send the name,400
+  CastError: "Invalid Object Id format.", // when objectId is not valid ,400
+  dupicateKeyError: "Field is already exists", // when duplicate key exists in db then send the error , 409
+  DocumentNotFoundError: "Document not found.", // findById() found nothing then send the error ,404. doc not found
+  MongoServerError: "oops something wet wrong try after some time .", // 500 , genric error
+  networkError: "Service unavailable.", // network error 503 service unavailable
+  VersionError: "Version error.",
 };
 
 module.exports = {
@@ -91,8 +157,11 @@ module.exports = {
   EMAILTEMPLATE,
   CATEGORY,
   AUTH,
+  VENDOR,
   FOOD,
   OTP,
   PAYMENT,
   ADDRESS,
+  DB,
+  REVIEW,
 };

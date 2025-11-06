@@ -18,10 +18,6 @@ const categorySchema = new mongoose.Schema(
       enum: [0, 1, 2],
       default: 1, // Default to active unless otherwise specified
     },
-    isFeatured: {
-      type: Boolean,
-      default: false, // Whether the category is featured or not
-    },
   },
   { timestamps: true, versionKey: false }
 );

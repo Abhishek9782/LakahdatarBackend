@@ -1,3 +1,8 @@
+const {
+  BAD_REQUEST,
+  INTERNAL_SERVER_ERROR,
+  UNAUTHORIZED,
+} = require("./errors");
 const successResponse = (res, msg) => {
   const dt = {
     status: 1,
@@ -21,7 +26,7 @@ const errorResponse = (res, msg) => {
     status: 0,
     message: msg,
   };
-  return res.status(400).json(dt);
+  return res.status(BAD_REQUEST).json(dt);
 };
 
 const serverError = (res, msg) => {
@@ -29,7 +34,7 @@ const serverError = (res, msg) => {
     status: 0,
     message: msg,
   };
-  return res.status(500).json(dt);
+  return res.status(INTERNAL_SERVER_ERROR).json(dt);
 };
 
 const AuthError = (res, msg) => {
@@ -37,7 +42,7 @@ const AuthError = (res, msg) => {
     status: 0,
     message: msg,
   };
-  return res.status(401).json(dt);
+  return res.status(UNAUTHORIZED).json(dt);
 };
 module.exports = {
   successResponse,

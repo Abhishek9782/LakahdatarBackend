@@ -1,20 +1,22 @@
-const Products = require("../models/productsSchema");
 const mongoose = require("mongoose");
-const apiresponse = require("../utility/apirespone");
-const { SUCCESS, ERROR, FOOD } = require("../utility/messages");
+const Products = require("../../models/productsSchema");
+const apiresponse = require("../../utility/apirespone");
+const { SUCCESS, ERROR, FOOD } = require("../../utility/messages");
+const redis = require("../../Middlewares/redis");
 
 exports.getAllproducts = async (req, res) => {
   try {
     const { pageNumber, pageSize, searchItem, sortBy, sortorder } = req.query;
-    console.log(req.query);
     let page = Math.max(0, pageNumber - 1);
     let order = sortorder || -1;
     let sort = sortBy ? { [sortBy]: order } : { createdAt: -1 };
+    let regex;
+
     let condition = {
       status: { $ne: 2 },
       $and: [{}],
     };
-    let regex;
+
     if (searchItem) {
       regex = new RegExp(
         searchItem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
@@ -37,6 +39,20 @@ exports.getAllproducts = async (req, res) => {
       .sort(sort);
 
     const totalCount = await Products.countDocuments(condition);
+
+    if (data) {
+      await redis.setEx(
+        "allproducts",
+        3600,
+        JSON.stringify({
+          data,
+          pageNumber,
+          pageSize,
+          totalCount,
+        })
+      );
+    }
+
     return apiresponse.successResponsewithData(res, SUCCESS.dataFound, {
       data,
       pageNumber,
@@ -47,13 +63,14 @@ exports.getAllproducts = async (req, res) => {
     return apiresponse.serverError(res, ERROR.somethingWentWrong);
   }
 };
+
 exports.getOneProduct = async (req, res) => {
   try {
     const id = new mongoose.Types.ObjectId(req.params.id);
     const data = await Products.findOne(
       { _id: id, status: { $ne: 2 } },
       { __v: 0 }
-    );
+    ).lean();
     return apiresponse.successResponsewithData(res, SUCCESS.dataFound, data);
   } catch (error) {
     return apiresponse.serverError(res, ERROR.somethingWentWrong);
@@ -77,9 +94,12 @@ exports.FeatureProduts = async (req, res) => {
     const condition = {
       status: { $ne: 2 },
     };
+
     const data = await Products.find(condition, { __v: 0 })
+      .lean()
       .sort({ rating: -1 })
       .limit(3);
+
     return apiresponse.successResponsewithData(res, SUCCESS.dataFound, data);
   } catch (error) {
     return apiresponse.serverError(res, ERROR.somethingWentWrong);
@@ -89,11 +109,11 @@ exports.findProductType = async (req, res) => {
   try {
     const foodType = req.params.type.trim();
     if (!foodType) {
-      return apiresponse.errorResponse(res, FOOD.FoodtypeRequired);
+      return apiresponse.errorResponse(res, FOOD.required);
     }
     // Improved query with regex
     const regex = new RegExp(`\\b${foodType}\\b`, "i"); // Ensures full word match
-    const data = await Products.find({ foodType: regex }).lean(); // `.lean()` boosts performance
+    const data = await Products.find({ foodType: regex }).lean(); // `.lean()` boosts performance because it doesn't create a new mongoose document
 
     if (data.length > 0) {
       return apiresponse.successResponsewithData(
@@ -112,7 +132,10 @@ exports.findProductType = async (req, res) => {
 exports.getFavProduct = async (req, res) => {
   const ids = req.body;
   try {
-    const favproducts = await Products.find({ _id: { $in: ids } }, { __v: 0 });
+    const favproducts = await Products.find(
+      { _id: { $in: ids } },
+      { __v: 0 }
+    ).lean();
     return apiresponse.successResponsewithData(
       res,
       SUCCESS.dataFound,

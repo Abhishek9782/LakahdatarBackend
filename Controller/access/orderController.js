@@ -1,6 +1,7 @@
-const { ERROR, AUTH } = require("../utility/messages");
-const Order = require("../models/orderSchema");
-const apiresponse = require("../utility/apirespone");
+const { ERROR, AUTH } = require("../../utility/messages");
+const Order = require("../../models/orderSchema");
+const apiresponse = require("../../utility/apirespone");
+const mongoose = require("mongoose");
 
 exports.getAllorder = async (req, res) => {
   // startDate and Date are that data which is the user want filter that order according there dates
@@ -11,7 +12,9 @@ exports.getAllorder = async (req, res) => {
 
   let { status, startDate, endDate } = req.body;
 
-  const matchQuery = {};
+  const matchQuery = {
+    user: new mongoose.Types.ObjectId(req.user._id),
+  };
 
   if (status && status !== "All") {
     status = status.toLowerCase();
