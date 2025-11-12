@@ -211,6 +211,7 @@ exports.login = async (req, res) => {
       vendor: {
         _id: user._id,
         fullname: user.fullname,
+        profileImage: user?.img,
         mobile: user.mobile,
         email: user.email,
         gender: user.gender,
@@ -557,6 +558,7 @@ exports.getAllOrders = async (req, res) => {
       .skip(pageSize * pageNumber)
       .limit(pageSize)
       .sort(sort)
+      .populate("user", "fullname")
       .lean();
     const countDocument = await Order.countDocuments(searchQuery); // give total found
     return apiResponse.successResponsewithData(res, SUCCESS.dataFound, {
@@ -806,6 +808,141 @@ exports.getTotalPendingOrder = async (req, res) => {
       pendingOrders
     );
   } catch (err) {
+    return apiResponse.serverError(res, ERROR.somethingWentWrong);
+  }
+};
+
+//  dashboard controller
+
+exports.dashboardController = async (req, res) => {
+  try {
+    if (!req.vendor || req.vendor?.role !== "vendor") {
+      return apiResponse.AuthError(res, VENDOR.unauthorizedAccess);
+    }
+    const restaurnat = await Restaurnt.findOne(
+      {
+        owner: new mongoose.Types.ObjectId(req.vendor?._id),
+      },
+      { _id: 1 }
+    ).lean();
+
+    const data = await Order.aggregate([
+      {
+        $match: {
+          restaurant: restaurnat._id, // fixed typo
+          paymentStatus: "PAID",
+          status: "completed",
+        },
+      },
+      {
+        $group: {
+          _id: "$restaurant",
+          totalSales: { $sum: "$totalAmount" },
+          totalOrders: { $sum: 1 },
+          averageRating: { $avg: "$rating" },
+        },
+      },
+      // Getting Restaurant Details Here
+      {
+        $lookup: {
+          from: "restaurants",
+          localField: "_id",
+          foreignField: "_id",
+          pipeline: [
+            {
+              $match: {
+                status: 1,
+                isBlocked: false,
+                approveStatus: "approved",
+              },
+            },
+            {
+              $project: {
+                name: 1,
+                owner: 1,
+                email: 1,
+                phone: 1,
+                address: 1,
+                rating: 1,
+                isBlocked: 1,
+              },
+            },
+          ],
+          as: "restaurantData",
+        },
+      },
+      { $unwind: "$restaurantData" },
+      // Getting all Active Products
+      {
+        $lookup: {
+          from: "products",
+          localField: "_id",
+          foreignField: "restaurant",
+          pipeline: [
+            { $match: { status: 1 } },
+            {
+              $project: {
+                _id: 1,
+              },
+            },
+            {
+              $count: "totalActiveProducts",
+            },
+          ],
+          as: "productData",
+        },
+      },
+      { $unwind: "$productData" },
+
+      {
+        $project: {
+          _id: "$_id",
+          totalSales: 1,
+          totalOrders: 1,
+          restaurantData: 1,
+          productData: 1,
+        },
+      },
+    ]);
+
+    return apiResponse.successResponsewithData(res, SUCCESS.dataFound, data);
+  } catch (err) {
+    return apiResponse.serverError(res, ERROR.somethingWentWrong);
+  }
+};
+
+exports.recentOrders = async (req, res) => {
+  try {
+    if (!req.vendor || req.vendor?.role !== "vendor") {
+      return apiResponse.AuthError(res, VENDOR.unauthorizedAccess);
+    }
+
+    const restaurant = await Restaurnt.findOne({
+      owner: new mongoose.Types.ObjectId(req.vendor._id),
+    });
+
+    const orders = await Order.find({
+      status: "completed",
+      paymentStatus: "PAID",
+      restaurant: restaurant._id,
+    })
+      .populate("user", "fullname")
+      .select("_id user orderId totalAmount createdAt updatedAt status")
+      .sort({ createdAt: -1 })
+      .lean();
+    return apiResponse.successResponsewithData(res, SUCCESS.dataFound, orders);
+  } catch (err) {
+    console.log(err);
+    return apiResponse.serverError(res, ERROR.somethingWentWrong);
+  }
+};
+
+exports.dummy = async (req, res) => {
+  try {
+    if (!req.vendor || req.vendor?.role !== "vendor") {
+      return apiResponse.AuthError(res, VENDOR.unauthorizedAccess);
+    }
+  } catch {
     return apiResponse.serverError(res, ERROR.somethingWentWrong);
   }
 };

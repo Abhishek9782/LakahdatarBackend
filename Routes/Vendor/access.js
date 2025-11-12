@@ -62,7 +62,9 @@ route.post(
 
 // dashboard vendor
 
-route.get("/dashboard", Controller.register); // Returns totalOrders, totalEarnings, todayOrders, pendingOrders, averageRating
+route.get("/dashboard", vendorAuth, Controller.dashboardController); // Returns totalOrders, totalEarnings, todayOrders, pendingOrders, averageRating
+
+route.get("/recentOrders", vendorAuth, Controller.recentOrders); // Returns totalOrders, totalEarnings, todayOrders, pendingOrders, averageRating
 
 route.get("/sales-report", Controller.register); //Returns sales chart data
 

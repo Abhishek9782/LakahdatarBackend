@@ -35,7 +35,6 @@ const serverRateLimiter = rateLimit({
 });
 
 // ------------------ Connect DB ------------------
-mongodbConnect();
 
 // ------------------ Global Middlewares ------------------
 
@@ -84,10 +83,17 @@ app.use((err, req, res, next) => {
 });
 
 // ------------------ Cron Jobs ------------------
-autoCancelledOrder();
 
 // ------------------ Server ------------------
-app.listen(port, async () => {
-  await mongodbConnect();
-  console.log(`✅ Server running on port ${port}`);
-});
+
+const startServer = async () => {
+  try {
+    await mongodbConnect();
+    autoCancelledOrder();
+    app.listen(port, () => console.log(`✅ Server running on port ${port}`));
+  } catch (err) {
+    console.error("❌ Failed to start server:", err);
+  }
+};
+
+startServer();
