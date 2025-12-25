@@ -149,10 +149,26 @@ const vendorFoodSchema = Joi.object({
     "string.max": "Food name is too long",
   }),
 
-  desc: Joi.string().max(500).required().messages({
+  description: Joi.string().max(500).required().messages({
     "string.base": "Description must be a string",
     "string.empty": "Description cannot be empty",
     "string.max": "Description is too long",
+  }),
+  foodType: Joi.string().required().messages({
+    "string.base": "foodType must be a string",
+    "string.empty": "foodType cannot be empty",
+  }),
+  category: Joi.string().required().messages({
+    "string.base": "category must be a string",
+    "string.empty": "category cannot be empty",
+  }),
+  food: Joi.string().required().messages({
+    "string.base": "food must be a string",
+    "string.empty": "food cannot be empty",
+  }),
+  status: Joi.string().required().messages({
+    "string.base": "status must be a string",
+    "string.empty": "status cannot be empty",
   }),
   halfprice: Joi.number().min(1).required().messages({
     "string.base": "Half Price must be a number",
@@ -163,15 +179,6 @@ const vendorFoodSchema = Joi.object({
     "string.base": "Full price must be a number ",
     "string.empty": "Full price cannot be empty",
     "string.min": "Full price must be more than 0",
-  }),
-
-  tags: Joi.array().items(Joi.string()).min(1).max(5).required().messages({
-    "array.base": "Tags must be an array",
-    "array.empty": "Please enter at least one tag",
-    "array.min": "Tags should contain at least 1 tag",
-    "array.max": "Tags should not exceed 5 tags",
-    "string.base": "Tag must be a string",
-    "string.empty": "Tag cannot be empty",
   }),
 });
 module.exports = {

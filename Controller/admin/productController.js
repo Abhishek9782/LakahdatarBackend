@@ -31,7 +31,7 @@ exports.productAdd = async (req, res) => {
 
     const imageUrl = await HelperFunction.enhanceanduploadCloudImage(
       res,
-      req.file.path
+      req.file.buffer
     );
 
     await HelperFunction.deleteLocalImage(req.file?.path);
@@ -171,7 +171,7 @@ exports.updateProduct = async (req, res) => {
       //   folder: "productImages",
       // });
       // updateData.src = result.secure_url;
-      const imagepath = await enhanceanduploadCloudImage(req.file.path);
+      const imagepath = await enhanceanduploadCloudImage(req.file.buffer);
       if (imagepath) {
         updateData.src = imagepath;
         fs.unlink(req.file.path, (err) => {

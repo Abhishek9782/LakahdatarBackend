@@ -28,18 +28,24 @@ exports.createCategory = async (req, res) => {
 
     const imageUrl = await HelperFunction.enhanceanduploadCloudImage(
       res,
-      req.file.path
+      req.file.buffer
     );
+
+    let slug = HelperFunction.generateSlug(name);
 
     const createCategory = new Category({
       name: name,
       description: description,
+      slug: slug,
       image: imageUrl,
     });
+    console.log(slug);
 
-    const savedCategory = await createCategory.save();
+    console.log(createCategory);
 
-    await HelperFunction.deleteLocalImage(req.file.path); //safe now
+    // const savedCategory = await createCategory.save();
+
+    // await HelperFunction.deleteLocalImage(req.file.path); //safe now
 
     // apiResponse.successResponsewithData(res, CATEGORY.categoryCreated, savedCategory);
   } catch (err) {

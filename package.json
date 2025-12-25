@@ -38,6 +38,7 @@
     "sharp": "^0.33.5",
     "slug": "^10.0.0",
     "slug-generator-js": "^1.0.1",
+    "socket.io": "^4.8.1",
     "xss-clean": "^0.1.4"
   }
 }

@@ -3,6 +3,8 @@ const User = require("../../models/UserSchema");
 const bcrypt = require("bcrypt");
 const HelperFunction = require("../../utility/function");
 const Restaurnt = require("../../models/Restaurnt");
+const Category = require("../../models/Category");
+const Tag = require("../../models/tags");
 const {
   VENDOR,
   ERROR,
@@ -319,9 +321,18 @@ exports.deleteVendor = async (req, res) => {
 };
 
 exports.addFood = async (req, res) => {
-  const { name, fullprice, halfprice, tags, desc } = req.body;
-
   try {
+    const {
+      name,
+      fullprice,
+      halfprice,
+      description,
+      status,
+      category,
+      foodType,
+      food,
+    } = req.body;
+
     if (!req.vendor || req.vendor?.role !== "vendor") {
       return apiResponse.AuthError(res, VENDOR.unauthorizedAccess);
     }
@@ -338,13 +349,8 @@ exports.addFood = async (req, res) => {
     }
 
     const imageUrl = await HelperFunction.enhanceanduploadCloudImage(
-      req.file.path
+      req.file?.buffer
     );
-
-    // delete the old image if exist
-    if (imageUrl) {
-      await HelperFunction.deleteLocalImage(req.file.path);
-    }
 
     // now we reduce our image Size and upload it to cloudinary
 
@@ -357,17 +363,23 @@ exports.addFood = async (req, res) => {
     if (!restaurntId) {
       return apiResponse.errorResponse(res, VENDOR.restaurantNotFound);
     }
-    const food = new productsSchema({
-      name: name,
-      src: imageUrl,
-      fullprice: fullprice,
-      halfprice: halfprice,
-      tags: tags,
-      desc: desc,
-      restaurant: restaurntId._id,
-    });
 
-    console.log(food);
+    const finalProduct = {
+      name: name,
+      category: new mongoose.Types.ObjectId(category),
+      fullprice,
+      halfprice,
+      status: status == "active" ? 1 : 0,
+      food,
+      src: imageUrl,
+      foodType,
+      description,
+      restaurant: restaurntId._id,
+    };
+
+    const savedProduct = new productsSchema(finalProduct);
+    savedProduct.save();
+    return apiResponse.successResponse(res, VENDOR.productAdded);
   } catch (error) {
     console.log(error);
     return apiResponse.serverError(res, ERROR.somethingWentWrong);
@@ -386,10 +398,15 @@ exports.getAllFoods = async (req, res) => {
     if (!req.vendor || req.vendor?.role !== "vendor") {
       return apiResponse.AuthError(res, VENDOR.unauthorizedAccess);
     }
+    const restaurant = await Restaurnt.findOne({
+      owner: new mongoose.Types.ObjectId(req.vendor._id),
+    });
+
     const query = {
       status: {
         $ne: 2,
       },
+      restaurant: restaurant._id,
     };
 
     if (searchItem) {
@@ -397,7 +414,7 @@ exports.getAllFoods = async (req, res) => {
     }
     const food = await productsSchema
       .find(query)
-      .select("id name src fullprice halfprice tags desc restaurant ")
+      .select("id name src fullprice halfprice tags desc restaurant status")
       .sort(sort)
       .skip(pageNumber * pageSize)
       .limit(pageSize)
@@ -431,7 +448,7 @@ exports.foodUpdate = async (req, res) => {
     }
     if (req.file) {
       const imageurl = await HelperFunction.enhanceanduploadCloudImage(
-        req.file.path
+        req.file.buffer
       );
       if (imageurl) {
         query.src = imageurl;
@@ -520,12 +537,40 @@ exports.foodStatusUpdate = async (req, res) => {
   }
 };
 
+exports.GetAllFoodCategory = async (req, res) => {
+  try {
+    if (!req.vendor || req.vendor?.role !== "vendor") {
+      return apiResponse.AuthError(res, VENDOR.unauthorizedAccess);
+    }
+    const categores = await Category.find({ status: { $ne: 2 } });
+    return apiResponse.successResponsewithData(
+      res,
+      SUCCESS.dataFound,
+      categores
+    );
+  } catch {
+    return apiResponse.serverError(res, ERROR.somethingWentWrong);
+  }
+};
+
+exports.getAllTags = async (req, res) => {
+  try {
+    if (!req.vendor || req.vendor?.role !== "vendor") {
+      return apiResponse.AuthError(res, VENDOR.unauthorizedAccess);
+    }
+    const tags = await Tag.find();
+    return apiResponse.successResponsewithData(res, SUCCESS.dataFound, tags);
+  } catch {
+    return apiResponse.serverError(res, ERROR.somethingWentWrong);
+  }
+};
+
 exports.getAllOrders = async (req, res) => {
   let { status, pageNumber, pageSize, sortOrder, sortBy, searchItem } =
     req.body;
   pageNumber = Number.parseInt(pageNumber, 0);
   pageSize = Number.parseInt(pageSize, 0);
-  sortOrder = sortOrder === "asc" ? 1 : -1;
+  sortOrder = sortOrder === "asc" ? -1 : 1;
   const sort = { [sortBy]: sortOrder };
 
   try {
@@ -541,6 +586,7 @@ exports.getAllOrders = async (req, res) => {
     if (status) {
       searchQuery.status = status;
     }
+
     const restaurntId = await Restaurnt.findOne(
       {
         owner: new mongoose.Types.ObjectId(req.vendor._id),

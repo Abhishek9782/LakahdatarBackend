@@ -88,7 +88,7 @@ const loginLimitior = rateLimit({
   },
 });
 
-const enhanceanduploadCloudImage = async (res, filePath) => {
+const enhanceanduploadCloudImage = async (filePath) => {
   try {
     const resizedImage = await sharp(filePath)
       .resize(800)
@@ -143,6 +143,18 @@ const sanitizeFields = (req, res, next) => {
   next();
 };
 
+function generateSlug(text) {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .normalize("NFD") // remove accents (café → cafe)
+    .replace(/[\u0300-\u036f]/g, "") // remove accent marks
+    .replace(/[^a-z0-9]+/g, "-") // replace non-alphanumeric with hyphens
+    .replace(/^-+|-+$/g, "") // remove leading/trailing hyphens
+    .replace(/--+/g, "-"); // collapse multiple hyphens
+}
+
 module.exports = {
   randomNumber,
   sendEmail,
@@ -153,4 +165,5 @@ module.exports = {
   enhanceanduploadCloudImage,
   deleteLocalImage,
   sanitizeFields,
+  generateSlug,
 };

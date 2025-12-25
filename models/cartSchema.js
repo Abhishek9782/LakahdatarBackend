@@ -1,4 +1,3 @@
-const { required } = require("joi");
 const mongoose = require("mongoose");
 
 const cartSchema = new mongoose.Schema(
@@ -31,6 +30,10 @@ const cartSchema = new mongoose.Schema(
         },
       },
     ],
+    restaurant: {
+      type: mongoose.Types.ObjectId,
+      ref: "Restaurant",
+    },
     subTotal: {
       type: Number,
       min: 0,

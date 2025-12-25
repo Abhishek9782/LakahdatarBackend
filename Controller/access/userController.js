@@ -153,8 +153,6 @@ exports.userRegister = async (req, res) => {
   try {
     // ✅ Step 1: Validate input using Joi
     const { error } = registerSchema.validate(req.body);
-    console.log(req.body);
-    console.log(error);
 
     if (error) {
       const errors = error.details.map((err) => err.message);
@@ -186,8 +184,6 @@ exports.userRegister = async (req, res) => {
     };
 
     const isMatch = await User.findOne(condition).lean();
-
-    console.log(isMatch);
 
     //   if user exist
     if (isMatch) {
@@ -496,18 +492,15 @@ exports.forgotPassword = async (req, res) => {
 
 exports.userLogin = async (req, res) => {
   const { email = "", password = "", carts = [], charges = {} } = req.body;
+  console.log(req.body);
   try {
-    const { error } = loginValidate.validate(req.body);
-
-    if (error) {
-      const errors = error?.details.map(
-        (error) => `${error.path}:${error.message}`
-      );
-      return apirespone.errorResponse(res, errors);
-    }
     // Basic validation
     if (!email.trim()) {
       return apirespone.errorResponse(res, "Please enter an email address");
+    }
+    const validEmail = checkValidEmail(email);
+    if (email && !validEmail) {
+      return apirespone.errorResponse(res, "Please enter a valid email.");
     }
 
     if (!password.trim()) {
@@ -610,7 +603,7 @@ exports.getProfile = async (req, res) => {
     apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };
-//  Here we add to cart in user what he want to add his cart this can store in users database
+
 exports.addToCart = async (req, res) => {
   try {
     if (!req.user) {
@@ -621,12 +614,13 @@ exports.addToCart = async (req, res) => {
 
     // Check if the product exists
     const product = await Product.findById(productId);
+
     if (!product) return apirespone.errorResponse(res, PRODUCT.productnotFound);
 
     const price =
       productQuantity === "full" ? product.fullprice : product.halfprice;
 
-    // Find the user's cart
+    // Find the user has already this cart in there db then we + other wise add new cart
     let cart = await Cart.findOne({ user: req.user._id });
 
     if (!cart) {
@@ -647,6 +641,7 @@ exports.addToCart = async (req, res) => {
         deliveryFees: deliveryFees,
         gst: gst,
         totalAmount: finalAmount,
+        restaurant: product?.restaurant,
       });
     } else {
       // Check if the product already exists with the same quantity type
@@ -686,7 +681,6 @@ exports.addToCart = async (req, res) => {
   }
 };
 
-//  If user Logout then he should his cards that's why we are runing it
 exports.UserLogout = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -875,6 +869,7 @@ exports.createDbOrder = async (req, res) => {
     razorpay_payment_id,
     paymentMethod,
     paymentStatus,
+    restaurantId,
   } = req.body;
 
   const user = new mongoose.Types.ObjectId(req.user?._id);
@@ -883,13 +878,14 @@ exports.createDbOrder = async (req, res) => {
     if (!req.user || req.user.role !== "user") {
       return apirespone.AuthError(res, AUTH.notAuth);
     }
+    const userName = await User.findOne({ _id: user }, { fullname: 1 }).lean();
 
     const cartData = await Cart.findOne({ user });
 
     if (!cartData) return res.status(404).json({ message: CART.cartnotFound });
 
     cartData.carts.forEach((cart) => {
-      console.log(cart);
+      // console.log(cart);
     });
 
     const newOrder = new Order({
@@ -905,15 +901,16 @@ exports.createDbOrder = async (req, res) => {
       razorpayPaymentId: razorpay_payment_id,
       paymentStatus: "PAID",
       paymentMethod: paymentMethod,
-      status: paymentStatus === "authorized" ? "completed" : "cancelled",
+      restaurant: restaurantId,
     });
 
-    // await newOrder.save();
-    // await Cart.deleteOne({ user });
+    await newOrder.save();
+    await Cart.deleteOne({ user });
 
     return apirespone.successResponsewithData(res, PAYMENT.done, {
       success: true,
       order: newOrder,
+      userName,
     });
   } catch (error) {
     console.log(error);

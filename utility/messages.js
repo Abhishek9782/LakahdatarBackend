@@ -129,6 +129,7 @@ const VENDOR = {
   approvalRequired: "Approval field required",
   reviewIdRequired: "Review id required.",
   emailPasswordrequired: "Email id and Password Required.",
+  productAdded: "Product added successfully.",
 };
 
 const REVIEW = {

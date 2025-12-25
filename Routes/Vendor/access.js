@@ -25,7 +25,7 @@ route.get("/delete-profile/:id", Controller.deleteVendor);
 route.post(
   "/food-create",
   vendorAuth,
-  upload.single("src"),
+  upload.single("image"),
   Controller.addFood
 ); //  New Food
 
@@ -36,6 +36,10 @@ route.post("/food-update", vendorAuth, Controller.foodUpdate); //update food
 route.put("/food-delete/:id", vendorAuth, Controller.foodDelete); // delete food permanently
 
 route.post("/food-status-update", vendorAuth, Controller.foodStatusUpdate); // food status change using this api i can active or inactive or delete food
+
+route.get("/foodCategory", vendorAuth, Controller.GetAllFoodCategory);
+
+route.get("/tags", vendorAuth, Controller.getAllTags);
 
 // Restaurant Management
 // restaurant update
@@ -50,6 +54,7 @@ route.post("/update-order-status", vendorAuth, Controller.updateOrderStatus); //
 route.post("/orders/:filter", vendorAuth, Controller.filteredOrder); // filtered order like all - preparing,  confirmed, delivered
 
 // review management
+
 route.get("/reviews", vendorAuth, Controller.getAllReviews); //getting allreviews
 
 route.get("/review/:prodId", vendorAuth, Controller.getSingleProductReview); // this route should be only for user i made it for vendor which is wrong

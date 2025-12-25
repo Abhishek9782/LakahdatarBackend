@@ -29,13 +29,19 @@ const FoodSchema = new mongoose.Schema(
     food: {
       type: String,
     },
+    category: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+    },
     tags: [
       {
         type: mongoose.Schema.Types.ObjectId,
+        ref: "Tag",
       },
     ],
     restaurant: {
       type: mongoose.Types.ObjectId,
+      ref: "Restaurant",
       required: true,
     },
     rating: {
@@ -45,10 +51,6 @@ const FoodSchema = new mongoose.Schema(
     },
     desc: {
       type: String,
-    },
-    qty: {
-      type: Number,
-      default: 1,
     },
     offer: {
       type: Number,

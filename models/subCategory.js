@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const categorySchema = new mongoose.Schema(
+const subcategorySchema = new mongoose.Schema(
   {
     name: {
       type: String,
@@ -11,6 +11,10 @@ const categorySchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+    },
+    parentSlug: {
+      type: String,
+      required: true,
     },
     description: {
       type: String, // Optional description of the category
@@ -27,4 +31,4 @@ const categorySchema = new mongoose.Schema(
   { timestamps: true, versionKey: false }
 );
 
-module.exports = mongoose.model("Category", categorySchema);
+module.exports = mongoose.model("subcategori", subcategorySchema);
