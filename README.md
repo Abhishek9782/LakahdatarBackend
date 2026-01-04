@@ -132,7 +132,7 @@ src/
 ### Backend Setup
 ```bash
 # Clone the repository
-git clone - https://github.com/abhishek-mishra-mern/LakahdatarBackend.git
+git clone https://github.com/abhishek-mishra-mern/LakahdatarBackend.git
 cd Lakhdatar_Backend
 
 # Install dependencies
