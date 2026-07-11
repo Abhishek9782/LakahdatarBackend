@@ -949,21 +949,30 @@ exports.paymentWebHook = async (req, res) => {
   }
 };
 
-exports.AdduserAddress = async (req, res) => {
+exports.AddUserAddress = async (req, res) => {
   try {
     if (!req.user) {
       return apirespone.AuthError(res, AUTH.notAuth);
     }
-    const { fullname, phone, address, city, state, postalCode, country } =
-      req.body;
+    const {
+      fullName,
+      phone,
+      address,
+      city,
+      state,
+      postalCode,
+      addressType,
+      country,
+    } = req.body;
 
     const saveAddress = await Address.create({
       user: req.user._id,
-      name: fullname,
-      street: address,
+      name: fullName,
       city: city,
+      fullAddress: address,
       state,
       postalCode,
+      addressType,
       country,
       phone,
     });
@@ -972,6 +981,20 @@ exports.AdduserAddress = async (req, res) => {
       return apirespone.successResponse(res, ADDRESS.addressadded);
     }
   } catch (err) {
+    console.log(err);
+    return apirespone.serverError(res, ERROR.somethingWentWrong);
+  }
+};
+
+exports.allAddress = async (req, res) => {
+  try {
+    if (!req.user) {
+      return apirespone.AuthError(res, AUTH.notAuth);
+    }
+    const address = await Address.find({ user: req.user._id });
+    return apirespone.successResponsewithData(res, "data found", address);
+  } catch (err) {
+    console.log(err);
     return apirespone.serverError(res, ERROR.somethingWentWrong);
   }
 };

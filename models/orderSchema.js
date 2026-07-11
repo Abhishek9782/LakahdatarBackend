@@ -10,7 +10,7 @@ const orderSchema = new mongoose.Schema(
     restaurant: {
       type: mongoose.Types.ObjectId,
       ref: "Restaurant",
-      required: true,
+      required: false,
     },
     orderId: {
       type: String,

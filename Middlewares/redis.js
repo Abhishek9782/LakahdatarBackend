@@ -20,6 +20,6 @@ const connectRedis = async () => {
   }
 };
 
-connectRedis();
+// connectRedis();
 
 module.exports = client;

@@ -20,7 +20,7 @@ exports.getAllproducts = async (req, res) => {
     if (searchItem) {
       regex = new RegExp(
         searchItem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-        "i"
+        "i",
       );
       condition = {
         status: { $ne: 2 },
@@ -40,18 +40,18 @@ exports.getAllproducts = async (req, res) => {
 
     const totalCount = await Products.countDocuments(condition);
 
-    if (data) {
-      await redis.setEx(
-        "allproducts",
-        3600,
-        JSON.stringify({
-          data,
-          pageNumber,
-          pageSize,
-          totalCount,
-        })
-      );
-    }
+    // if (data) {
+    //   await redis.setEx(
+    //     "allproducts",
+    //     3600,
+    //     JSON.stringify({
+    //       data,
+    //       pageNumber,
+    //       pageSize,
+    //       totalCount,
+    //     }),
+    //   );
+    // }
 
     return apiresponse.successResponsewithData(res, SUCCESS.dataFound, {
       data,
@@ -60,6 +60,7 @@ exports.getAllproducts = async (req, res) => {
       totalCount,
     });
   } catch (error) {
+    console.log(error);
     return apiresponse.serverError(res, ERROR.somethingWentWrong);
   }
 };
@@ -69,7 +70,7 @@ exports.getOneProduct = async (req, res) => {
     const id = new mongoose.Types.ObjectId(req.params.id);
     const data = await Products.findOne(
       { _id: id, status: { $ne: 2 } },
-      { __v: 0 }
+      { __v: 0 },
     ).lean();
     return apiresponse.successResponsewithData(res, SUCCESS.dataFound, data);
   } catch (error) {
@@ -82,7 +83,7 @@ exports.ourSpecial = async (req, res) => {
     return apiresponse.successResponsewithData(
       res,
       SUCCESS.dataFound,
-      allProducts
+      allProducts,
     );
   } catch (error) {
     return apiresponse.errorResponse(res, ERROR.somethingWentWrong);
@@ -119,7 +120,7 @@ exports.findProductType = async (req, res) => {
       return apiresponse.successResponsewithData(
         res,
         apiresponse.successResponse,
-        data
+        data,
       );
     } else {
       return apiresponse.errorResponse(res, FOOD.notavailable);
@@ -134,12 +135,12 @@ exports.getFavProduct = async (req, res) => {
   try {
     const favproducts = await Products.find(
       { _id: { $in: ids } },
-      { __v: 0 }
+      { __v: 0 },
     ).lean();
     return apiresponse.successResponsewithData(
       res,
       SUCCESS.dataFound,
-      favproducts
+      favproducts,
     );
   } catch (error) {
     return apiresponse.serverError(res, ERROR.somethingWentWrong);

@@ -29,6 +29,7 @@ user.post(
   express.raw({ type: "application/json" }),
   UserController.paymentWebHook
 );
-user.post("/addaddress", userAuth, UserController.AdduserAddress);
+user.post("/add-address", userAuth, UserController.AddUserAddress);
+user.get("/address", userAuth, UserController.allAddress);
 
 module.exports = user;
